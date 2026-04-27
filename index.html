@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MUFC APP 2026</title>
+<!-- Firebase SDK -->
+<script type="module">
+// ════════════════════════════════════════════════════════════
+// FIREBASE CONFIG — replace these values with your own project
+// from https://console.firebase.google.com
+// ════════════════════════════════════════════════════════════
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, set, onValue, get }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDER8GUoytvrqBbXgy-NA8Dl2rOoKbdIRc",
+  authDomain:        "mufc-app-2026.firebaseapp.com",
+  databaseURL:       "https://mufc-app-2026-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "mufc-app-2026",
+  storageBucket:     "mufc-app-2026.firebasestorage.app",
+  messagingSenderId: "839002430441",
+  appId:             "1:839002430441:web:82830d222556f627824978",
+  measurementId:     "G-27HNF551JP"
+};
+
+const fbApp = initializeApp(FIREBASE_CONFIG);
+const db    = getDatabase(fbApp);
+
+// ── Keys ─────────────────────────────────────────────────────
+const STATE_KEY    = 'mufc2026/state';
+const REGISTRY_KEY = 'mufc2026/registry';
+
+// ── Push full app state to Firebase ─────────────────────────
+window.fbPushState = function() {
+  // Strip non-serialisable fields (timers live only on device)
+  const payload = JSON.parse(JSON.stringify({
+    fencers:    window._S.fencers,
+    teams:      window._S.teams,
+    matches:    window._S.matches,
+    bracket:    window._S.bracket,
+    started:    window._S.started,
+    format:     window._S.format,
+    eventInfo:  window._S.eventInfo,
+    pins:       window._S.pins
+  }));
+  set(ref(db, STATE_KEY), payload).catch(e => console.warn('FB push failed', e));
+};
+
+// ── Push registry only ────────────────────────────────────────
+window.fbPushRegistry = function() {
+  set(ref(db, REGISTRY_KEY), window._S.compRegistry || [])
+    .catch(e => console.warn('FB registry push failed', e));
+};
+
+// ── Subscribe: live updates from any device ───────────────────
+// Debounce flag — ignore our own pushes echoing back
+let _fbIgnoreNext = false;
+window.fbSetIgnore = function() { _fbIgnoreNext = true; };
+
+onValue(ref(db, STATE_KEY), snap => {
+  if (_fbIgnoreNext) { _fbIgnoreNext = false; return; }
+  const data = snap.val();
+  if (!data) return;
+  // Merge remote state into local S (don't overwrite role/myFencerId — those are per-device)
+  const S = window._S;
+  S.fencers   = data.fencers   || [];
+  S.teams     = data.teams     || [];
+  S.matches   = data.matches   || [];
+  S.bracket   = data.bracket   || [];
+  S.started   = data.started   || false;
+  S.format    = data.format    || null;
+  if (data.eventInfo) S.eventInfo = data.eventInfo;
+  if (data.pins)      S.pins      = data.pins;
+  // Re-render everything
+  if (typeof window.fbOnRemoteUpdate === 'function') window.fbOnRemoteUpdate();
+});
+
+onValue(ref(db, REGISTRY_KEY), snap => {
+  const data = snap.val();
+  if (data === null) return;
+  const S = window._S;
+  S.compRegistry = Array.isArray(data) ? data : Object.values(data);
+  // Ensure fencers from registry are in local fencer list
+  S.compRegistry.forEach(r => {
+    if (!S.fencers.find(f => f.name === r.name)) {
+      S.fencers.push({ id: r.id, name: r.name, level: r.level, bailed: false });
+      if (r.id >= window._fId) window._fId = r.id + 1;
+    }
+  });
+  if (typeof window.fbOnRemoteUpdate === 'function') window.fbOnRemoteUpdate();
+});
+
+// ── Load initial state once on page load ─────────────────────
+get(ref(db, STATE_KEY)).then(snap => {
+  const data = snap.val();
+  if (!data) return;
+  const S = window._S;
+  S.fencers  = data.fencers  || [];
+  S.teams    = data.teams    || [];
+  S.matches  = data.matches  || [];
+  S.bracket  = data.bracket  || [];
+  S.started  = data.started  || false;
+  S.format   = data.format   || null;
+  if (data.eventInfo) S.eventInfo = data.eventInfo;
+  if (data.pins)      S.pins      = data.pins;
+  // Bump counters past any existing ids
+  S.fencers.forEach(f => { if (f.id >= window._fId) window._fId = f.id + 1; });
+  S.teams.forEach(t => { if (t.id >= window._tId) window._tId = t.id + 1; });
+  S.matches.forEach(m => { if (m.id >= window._mId) window._mId = m.id + 1; });
+  if (typeof window.fbOnRemoteUpdate === 'function') window.fbOnRemoteUpdate();
+});
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#0a1628;--navy2:#111f38;--navy3:#1a2f50;
+  --blue:#1e5fa8;--blue2:#2e7dd4;
+  --gold:#c9a227;--gold2:#e8bc3a;
+  --red:#c0392b;--green:#1a7a4a;
+  --purple:#6c3483;--purple2:#8e44ad;
+  --white:#f0eeea;--muted:#7a8a9e;
+  --border:rgba(255,255,255,0.08);--card:rgba(255,255,255,0.04);--r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--navy);color:var(--white);font-family:'DM Sans',sans-serif;font-size:15px;overscroll-behavior:none;}
+.app{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;position:relative;overflow:hidden;}
+
+/* HEADER */
+.header{padding:10px 16px 8px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--navy);z-index:10;}
+.header-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.logo{line-height:1;}
+.logo-main{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--gold);}
+.logo-sub{font-size:10px;color:var(--muted);letter-spacing:.08em;display:block;margin-top:1px;}
+.role-badge{background:var(--navy3);border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-size:11px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0;}
+.role-badge.referee{border-color:var(--gold);color:var(--gold);}
+.role-badge.competitor{border-color:var(--blue2);color:var(--blue2);}
+.role-badge.committee{border-color:var(--purple2);color:var(--purple2);}
+
+/* SCROLL */
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 14px 20px;-webkit-overflow-scrolling:touch;}
+.scroll-area::-webkit-scrollbar{width:3px;}
+.scroll-area::-webkit-scrollbar-thumb{background:var(--navy3);border-radius:3px;}
+
+/* SCREENS */
+.screen{display:none;}.screen.active{display:block;}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:12px;}
+.card-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:var(--gold);margin-bottom:10px;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;border:none;cursor:pointer;transition:all .15s;text-align:center;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:active{background:var(--blue2);transform:scale(.98);}
+.btn-gold{background:var(--gold);color:var(--navy);}
+.btn-gold:active{background:var(--gold2);transform:scale(.98);}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted);}
+.btn-ghost:active{background:var(--card);}
+.btn-danger{background:rgba(192,57,43,.18);border:1px solid var(--red);color:#e74c3c;}
+.btn-purple{background:var(--purple);color:#fff;}
+.btn-purple:active{background:var(--purple2);transform:scale(.98);}
+.btn-block{width:100%;}.btn-sm{padding:7px 13px;font-size:12px;}.btn-lg{padding:13px 18px;font-size:15px;}
+
+/* FORMS */
+label{display:block;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+input,select{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:14px;padding:9px 11px;outline:none;-webkit-appearance:none;}
+input:focus,select:focus{border-color:var(--blue2);}
+select option{background:var(--navy2);}
+.form-group{margin-bottom:13px;}
+
+/* PIN INPUT */
+.pin-row{display:flex;gap:8px;justify-content:center;margin:12px 0;}
+.pin-digit{width:52px;height:58px;background:var(--navy2);border:1px solid var(--border);border-radius:10px;color:var(--white);font-size:26px;font-family:'DM Mono',monospace;text-align:center;outline:none;-webkit-appearance:none;}
+.pin-digit:focus{border-color:var(--blue2);}
+
+/* SECTION HEAD */
+.section-head{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1.5px;color:var(--muted);margin:18px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border);}
+
+/* BADGE */
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:500;font-family:'DM Mono',monospace;}
+.badge-gold{background:rgba(201,162,39,.2);color:var(--gold);border:1px solid rgba(201,162,39,.4);}
+.badge-blue{background:rgba(46,125,212,.2);color:var(--blue2);border:1px solid rgba(46,125,212,.3);}
+.badge-green{background:rgba(26,122,74,.2);color:#2ecc71;border:1px solid rgba(26,122,74,.3);}
+.badge-red{background:rgba(192,57,43,.2);color:#e74c3c;border:1px solid rgba(192,57,43,.3);}
+.badge-muted{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border);}
+.badge-purple{background:rgba(108,52,131,.25);color:#c39bd3;border:1px solid rgba(142,68,173,.4);}
+
+/* FENCER ROW */
+.fencer-row{display:flex;align-items:center;gap:7px;padding:8px 10px;background:var(--navy2);border-radius:8px;margin-bottom:5px;}
+.fencer-row .num{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--gold);width:20px;flex-shrink:0;}
+.fencer-row input{flex:1;background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;padding:3px 0;font-size:13px;}
+.fencer-row input:focus{border-bottom-color:var(--blue2);}
+.fencer-row .level-sel{width:100px;background:var(--navy3);border-radius:6px;padding:3px 7px;font-size:11px;flex-shrink:0;border:none;}
+.fencer-row .del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:17px;padding:0 3px;flex-shrink:0;}
+.fencer-row .del-btn:active{color:var(--red);}
+.fencer-row .bail-btn{background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);color:#e74c3c;border-radius:5px;font-size:10px;padding:2px 7px;cursor:pointer;flex-shrink:0;}
+
+/* TEAM CARD */
+.team-card{background:var(--navy2);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:8px;}
+.team-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.team-name-edit{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.2);color:var(--white);width:140px;padding:2px 0;outline:none;}
+.team-name-edit:focus{border-bottom-color:var(--gold);color:var(--gold);}
+.fencer-list{list-style:none;}
+.fencer-list li{font-size:12px;color:var(--muted);padding:2px 0;display:flex;align-items:center;gap:5px;}
+.fencer-list li .dot{width:4px;height:4px;border-radius:50%;background:var(--blue2);flex-shrink:0;}
+.fencer-list li .int-dot{background:var(--gold);}
+.fencer-list li .nov-dot{background:#e74c3c;}
+
+/* MATCH CARD */
+.match-card{background:var(--navy2);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:8px;transition:border-color .15s;}
+.match-card.live{border-color:var(--gold);}
+.match-card.complete{border-color:var(--green);opacity:.85;}
+.match-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.match-meta{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;}
+.match-teams{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;}
+.match-team{text-align:center;}
+.match-team-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.match-team-score{font-family:'Bebas Neue',sans-serif;font-size:38px;line-height:1;}
+.match-team-score.leading{color:var(--gold);}
+.match-team-score.losing{color:var(--muted);}
+.match-vs{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--muted);}
+.progress-bar{height:4px;background:var(--navy3);border-radius:2px;overflow:hidden;margin-top:8px;}
+.progress-fill{height:100%;border-radius:2px;transition:width .3s;}
+.progress-fill.a{background:var(--gold);float:left;}
+.progress-fill.b{background:var(--blue2);float:right;}
+.bout-row{display:flex;align-items:center;gap:5px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;}
+.bout-row:last-child{border-bottom:none;}
+.bout-fencer{flex:1;color:var(--muted);}
+.bout-fencer.active{color:var(--white);font-weight:500;}
+.bout-pts{font-family:'Bebas Neue',sans-serif;font-size:17px;width:25px;text-align:center;}
+.bout-pts.a{color:var(--gold);}
+.bout-pts.b{color:var(--blue2);}
+
+/* SCORING */
+.score-teams{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin-bottom:4px;}
+.score-team-block{flex:1;}
+.score-team-block.right{text-align:right;}
+.score-team-name{font-size:12px;font-weight:500;color:var(--muted);}
+.score-total{font-family:'Bebas Neue',sans-serif;font-size:60px;line-height:.9;}
+.score-total.a{color:var(--gold);}
+.score-total.b{color:var(--blue2);}
+.bout-info-box{background:var(--navy2);border-radius:var(--r);padding:11px 13px;margin:10px 0;}
+.bout-fencers-display{display:flex;justify-content:space-between;align-items:center;}
+.bout-fencer-name{font-size:14px;font-weight:500;}
+.bout-fencer-name.a{color:var(--gold);}
+.bout-fencer-name.b{color:var(--blue2);}
+.bout-pt-a{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--gold);}
+.bout-pt-b{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--blue2);}
+.timer-display{text-align:center;font-family:'Bebas Neue',sans-serif;font-size:44px;letter-spacing:2px;color:var(--white);margin:5px 0;}
+.timer-display.warning{color:var(--gold);}
+.timer-display.danger{color:#e74c3c;}
+.score-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;}
+.score-btn{background:var(--navy2);border:1px solid var(--border);border-radius:var(--r);padding:14px 10px;text-align:center;cursor:pointer;transition:all .12s;user-select:none;-webkit-user-select:none;}
+.score-btn:active{transform:scale(.95);}
+.score-btn.team-a{border-color:rgba(201,162,39,.4);}
+.score-btn.team-a:active{background:rgba(201,162,39,.15);}
+.score-btn.team-b{border-color:rgba(46,125,212,.4);}
+.score-btn.team-b:active{background:rgba(46,125,212,.15);}
+.score-btn-label{font-size:10px;color:var(--muted);margin-bottom:3px;}
+.score-btn-name{font-size:14px;font-weight:600;}
+.score-btn-name.a{color:var(--gold);}
+.score-btn-name.b{color:var(--blue2);}
+
+/* BRACKET */
+.bracket-match{background:var(--navy2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:7px;overflow:hidden;}
+.bracket-match.live{border-color:var(--gold);}
+.bracket-match.complete{border-color:var(--green);}
+.bracket-team-row{display:flex;align-items:center;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;}
+.bracket-team-row:last-child{border-bottom:none;}
+.bracket-team-row.winner{background:rgba(26,122,74,.1);}
+.bracket-team-row .seed{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);width:18px;flex-shrink:0;}
+.bracket-team-row .bname{flex:1;font-size:13px;font-weight:500;}
+.bracket-team-row .bscore{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--muted);}
+.bracket-team-row.winner .bscore{color:var(--gold);}
+.bracket-match-meta{padding:4px 12px;background:rgba(0,0,0,.2);font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;display:flex;justify-content:space-between;}
+
+/* STANDINGS */
+.standings-row{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:8px;margin-bottom:3px;}
+.standings-row:nth-child(odd){background:var(--navy2);}
+.st-rank{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--muted);width:20px;flex-shrink:0;text-align:center;}
+.st-rank.top{color:var(--gold);}
+.st-stats{display:flex;gap:10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);text-align:center;}
+.st-stats span{display:flex;flex-direction:column;align-items:center;}
+.st-stats .val{font-size:14px;color:var(--white);font-weight:500;}
+.st-stats .lbl{font-size:9px;color:var(--muted);}
+
+/* BOTTOM NAV */
+.bottom-nav{display:flex;border-top:1px solid var(--border);background:var(--navy);flex-shrink:0;}
+.nav-item{flex:1;padding:9px 4px 11px;text-align:center;cursor:pointer;color:var(--muted);}
+.nav-item.active{color:var(--gold);}
+.nav-icon{font-size:18px;display:block;margin-bottom:2px;}
+.nav-label{font-size:9px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;display:block;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:flex-end;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--navy2);border-radius:18px 18px 0 0;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;padding:18px 16px 30px;border-top:1px solid var(--border);}
+.modal-handle{width:34px;height:4px;background:var(--border);border-radius:2px;margin:-6px auto 14px;}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;margin-bottom:14px;}
+
+/* TOAST */
+.toast{position:fixed;top:58px;left:50%;transform:translateX(-50%);background:var(--navy3);border:1px solid var(--border);border-radius:8px;padding:9px 16px;font-size:12px;z-index:200;white-space:nowrap;transition:opacity .3s;pointer-events:none;}
+.toast.hidden{opacity:0;}
+
+/* MISC */
+.divider{height:1px;background:var(--border);margin:12px 0;}
+.text-muted{color:var(--muted);font-size:12px;}
+.text-center{text-align:center;}
+.flex-between{display:flex;justify-content:space-between;align-items:center;}
+.mt-8{margin-top:8px;}.mt-12{margin-top:12px;}
+.empty-state{text-align:center;padding:36px 20px;color:var(--muted);}
+.empty-icon{font-size:36px;margin-bottom:8px;}
+.champion-banner{background:linear-gradient(135deg,rgba(201,162,39,.2),rgba(201,162,39,.04));border:1px solid var(--gold);border-radius:var(--r);padding:18px;text-align:center;margin-bottom:14px;}
+.info-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.info-row:last-child{border-bottom:none;}
+.info-row .lbl{color:var(--muted);}
+.committee-strip{background:linear-gradient(90deg,rgba(108,52,131,.3),transparent);border:1px solid rgba(142,68,173,.3);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12px;color:#c39bd3;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">
+        <span class="logo-main">MUFC ⚔ APP</span>
+        <span class="logo-sub">Melbourne University Fencing Club · 2026</span>
+      </div>
+      <div class="role-badge" id="roleBtn" onclick="openRoleModal()">
+        <span id="roleIcon">👤</span>
+        <span id="roleText">Set role</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREENS -->
+  <div class="scroll-area" id="mainScroll">
+
+    <!-- SETUP -->
+    <div class="screen active" id="screen-setup">
+      <div id="committeeStrip" style="display:none">
+        <div class="committee-strip">🛡 Committee mode active — full override enabled</div>
+      </div>
+
+      <div class="section-head">Event Info</div>
+      <div id="eventInfoCard"></div>
+
+      <div class="section-head">Register Fencers</div>
+      <div class="card">
+        <p class="text-muted" style="margin-bottom:10px;">Each person adds themselves via the Competitor role. Committee can remove anyone.</p>
+        <div id="fencerList"></div>
+      </div>
+
+      <div class="card" id="genCard" style="display:none">
+        <div class="card-title">Teams</div>
+        <div id="teamSizeInfo" class="text-muted" style="font-size:12px;margin-bottom:10px;"></div>
+        <div class="info-row"><span class="lbl">Format</span><span id="formatLabel" style="color:var(--gold);font-family:'DM Mono',monospace;">—</span></div>
+        <div class="info-row"><span class="lbl">Structure</span><span id="structureLabel" style="color:var(--blue2);font-family:'DM Mono',monospace;">—</span></div>
+        <button id="genTeamsBtn" class="btn btn-gold btn-block btn-lg mt-12" onclick="generateTeams()" style="display:none">⚔ Generate Teams &amp; Draw</button>
+        <div id="genTeamsNote" style="display:none;text-align:center;font-size:12px;color:var(--muted);padding:10px 0 2px;">Committee will generate and draw teams</div>
+      </div>
+
+      <div id="teamsPreview"></div>
+      <div id="startCompBtn" style="display:none;margin-top:4px;"></div>
+      <div style="height:16px;"></div>
+    </div>
+
+    <!-- MATCHES -->
+    <div class="screen" id="screen-matches">
+      <div id="matchesContent"></div>
+    </div>
+
+    <!-- BRACKET -->
+    <div class="screen" id="screen-bracket">
+      <div id="bracketContent"></div>
+    </div>
+
+    <!-- STANDINGS -->
+    <div class="screen" id="screen-standings">
+      <div id="standingsContent"></div>
+    </div>
+
+    <!-- SCORING (full screen) -->
+    <div class="screen" id="screen-scoring">
+      <div id="scoringContent"></div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav" id="bottomNav">
+    <div class="nav-item active" onclick="showTab('setup')" id="nav-setup"><span class="nav-icon">⚙</span><span class="nav-label">Setup</span></div>
+    <div class="nav-item" onclick="showTab('matches')" id="nav-matches"><span class="nav-icon">⚔</span><span class="nav-label">Matches</span></div>
+    <div class="nav-item" onclick="showTab('bracket')" id="nav-bracket"><span class="nav-icon">🏆</span><span class="nav-label">Bracket</span></div>
+    <div class="nav-item" onclick="showTab('standings')" id="nav-standings"><span class="nav-icon">📊</span><span class="nav-label">Standings</span></div>
+  </div>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- ROLE SELECTION -->
+<div class="modal-overlay" id="roleModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Who are you?</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn btn-primary btn-block btn-lg" onclick="openCompetitorFlow()">🤺 Competitor</button>
+      <button class="btn btn-gold btn-block btn-lg" onclick="promptPin('referee')">⚖ Referee <span style="font-size:11px;opacity:.7;">— PIN required</span></button>
+      <button class="btn btn-purple btn-block btn-lg" onclick="promptPin('committee')">🛡 Committee <span style="font-size:11px;opacity:.7;">— PIN required</span></button>
+      <div style="border-top:1px solid var(--border);padding-top:8px;">
+        <button class="btn btn-ghost btn-block" onclick="setRole('spectator')">👁 Spectator — view only</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPETITOR FLOW — choose path -->
+<div class="modal-overlay" id="compFlowModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Competitor</div>
+    <p class="text-muted" style="margin-bottom:14px;">New to this device, or returning?</p>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn btn-primary btn-block btn-lg" onclick="openCompRegister()">+ Add yourself</button>
+      <button class="btn btn-ghost btn-block btn-lg" onclick="openCompLogin()">↩ Already registered — sign in</button>
+      <button class="btn btn-ghost btn-block btn-sm" onclick="closeModal('compFlowModal');openModal('roleModal')">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMPETITOR REGISTER — new fencer -->
+<div class="modal-overlay" id="compRegModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Register yourself</div>
+    <div class="form-group">
+      <label>Your name</label>
+      <input type="text" id="regName" placeholder="Full name" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Level</label>
+      <select id="regLevel">
+        <option value="beginner">Beginner</option>
+        <option value="novice">Novice</option>
+        <option value="intermediate">Int / Advanced</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Set your 4-digit PIN</label>
+      <p class="text-muted" style="margin-bottom:6px;font-size:11px;">You'll use this to log in from any device.</p>
+      <div class="pin-row">
+        <input class="pin-digit" id="regPin0" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('reg',0)" onkeydown="pinKey3(event,'reg',0)">
+        <input class="pin-digit" id="regPin1" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('reg',1)" onkeydown="pinKey3(event,'reg',1)">
+        <input class="pin-digit" id="regPin2" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('reg',2)" onkeydown="pinKey3(event,'reg',2)">
+        <input class="pin-digit" id="regPin3" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('reg',3)" onkeydown="pinKey3(event,'reg',3)">
+      </div>
+    </div>
+    <div id="regError" style="color:#e74c3c;font-size:12px;text-align:center;min-height:16px;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('compRegModal');openModal('compFlowModal')">← Back</button>
+      <button class="btn btn-primary btn-block" onclick="submitCompRegister()">Register</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMPETITOR LOGIN — returning fencer -->
+<div class="modal-overlay" id="compLoginModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Sign in</div>
+    <div class="form-group">
+      <label>Select your name</label>
+      <select id="loginNameSel"></select>
+    </div>
+    <div class="form-group">
+      <label>Your PIN</label>
+      <div class="pin-row">
+        <input class="pin-digit" id="loginPin0" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('login',0)" onkeydown="pinKey3(event,'login',0)">
+        <input class="pin-digit" id="loginPin1" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('login',1)" onkeydown="pinKey3(event,'login',1)">
+        <input class="pin-digit" id="loginPin2" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('login',2)" onkeydown="pinKey3(event,'login',2)">
+        <input class="pin-digit" id="loginPin3" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('login',3)" onkeydown="pinKey3(event,'login',3)">
+      </div>
+    </div>
+    <div id="loginError" style="color:#e74c3c;font-size:12px;text-align:center;min-height:16px;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('compLoginModal');openModal('compFlowModal')">← Back</button>
+      <button class="btn btn-primary btn-block" onclick="submitCompLogin()">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<!-- PIN ENTRY -->
+<div class="modal-overlay" id="pinModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="pinModalTitle">Enter PIN</div>
+    <p class="text-muted text-center" style="margin-bottom:4px;" id="pinModalSub"></p>
+    <div class="pin-row">
+      <input class="pin-digit" id="pin0" type="password" inputmode="numeric" maxlength="1" oninput="pinInput(0)" onkeydown="pinKey(event,0)">
+      <input class="pin-digit" id="pin1" type="password" inputmode="numeric" maxlength="1" oninput="pinInput(1)" onkeydown="pinKey(event,1)">
+      <input class="pin-digit" id="pin2" type="password" inputmode="numeric" maxlength="1" oninput="pinInput(2)" onkeydown="pinKey(event,2)">
+      <input class="pin-digit" id="pin3" type="password" inputmode="numeric" maxlength="1" oninput="pinInput(3)" onkeydown="pinKey(event,3)">
+    </div>
+    <div id="pinError" style="color:#e74c3c;font-size:12px;text-align:center;min-height:18px;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('pinModal')">Cancel</button>
+      <button class="btn btn-primary btn-block" onclick="submitPin()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSCODE (committee only) -->
+<div class="modal-overlay" id="passcodeModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Change Passcodes</div>
+    <p class="text-muted" style="margin-bottom:14px;">Committee access only. Enter new 4-digit PINs below.</p>
+    <div class="form-group">
+      <label>Referee PIN (current: hidden)</label>
+      <div class="pin-row" style="justify-content:flex-start;">
+        <input class="pin-digit" id="newRef0" type="password" inputmode="numeric" maxlength="1" oninput="pinInput2('newRef',0)">
+        <input class="pin-digit" id="newRef1" type="password" inputmode="numeric" maxlength="1" oninput="pinInput2('newRef',1)">
+        <input class="pin-digit" id="newRef2" type="password" inputmode="numeric" maxlength="1" oninput="pinInput2('newRef',2)">
+        <input class="pin-digit" id="newRef3" type="password" inputmode="numeric" maxlength="1" oninput="pinInput2('newRef',3)">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Committee PIN (current: hidden)</label>
+      <div class="pin-row" style="justify-content:flex-start;">
+        <input class="pin-digit" id="newCom0" type="password" inputmode="numeric" maxlength="1" oninput="pinInput2('newCom',0)">
+        <input class="pin-digit" id="newCom1" type="password" inputmode="numeric" maxlength="1" oninput="pinInput2('newCom',1)">
+        <input class="pin-digit" id="newCom2" type="password" inputmode="numeric" maxlength="1" oninput="pinInput2('newCom',2)">
+        <input class="pin-digit" id="newCom3" type="password" inputmode="numeric" maxlength="1" oninput="pinInput2('newCom',3)">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('passcodeModal')">Cancel</button>
+      <button class="btn btn-purple btn-block" onclick="savePasscodes()">Save PINs</button>
+    </div>
+    <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;">
+      <p class="text-muted" style="font-size:11px;margin-bottom:8px;">Danger zone — clears all competitor PINs from this device. They will need to re-register.</p>
+      <button class="btn btn-danger btn-block btn-sm" onclick="clearAllRegistry()">🗑 Clear all competitor PINs</button>
+    </div>
+  </div>
+</div>
+
+<!-- SWAP FENCER (referee/committee) -->
+<div class="modal-overlay" id="swapModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="swapModalTitle">Swap Fencer</div>
+    <p class="text-muted" style="margin-bottom:12px;" id="swapModalSub"></p>
+    <div class="form-group">
+      <label>Select replacement from team</label>
+      <select id="swapSelect" style="margin-bottom:4px;"></select>
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Or type a name manually</label>
+      <input type="text" id="swapManual" placeholder="Type name...">
+    </div>
+    <div id="swapScopeInfo" style="font-size:11px;color:var(--muted);margin-bottom:12px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('swapModal')">Cancel</button>
+      <button class="btn btn-primary btn-block" onclick="confirmSwap()">Confirm Swap</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOUT EDIT (referee/committee) -->
+<div class="modal-overlay" id="boutEditModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="boutEditTitle">Edit Bout Score</div>
+    <p class="text-muted" style="margin-bottom:14px;" id="boutEditSub"></p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div>
+        <label id="boutEditLabelA">Team A</label>
+        <input type="number" id="boutEditPtsA" min="0" max="5" style="font-size:22px;text-align:center;padding:12px;">
+      </div>
+      <div>
+        <label id="boutEditLabelB">Team B</label>
+        <input type="number" id="boutEditPtsB" min="0" max="5" style="font-size:22px;text-align:center;padding:12px;">
+      </div>
+    </div>
+    <p class="text-muted" style="font-size:11px;margin-bottom:14px;">Match running total will be recalculated automatically.</p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('boutEditModal')">Cancel</button>
+      <button class="btn btn-primary btn-block" onclick="saveBoutEdit()">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEXT BOUT CONFIRMATION -->
+<div class="modal-overlay" id="nextBoutModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="nextBoutModalContent"></div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+let S = {
+  role: null,
+  pins: { referee: '3333', committee: '2026' },
+  fencers: [],
+  teams: [],
+  matches: [],
+  bracket: [],
+  currentTab: 'setup',
+  activeMatchId: null,
+  started: false,
+  format: null,
+  eventInfo: { date: 'Friday 22 May 2026', venue: 'Nona Lee Sports Centre, West Stadium', time: '18:30' },
+  compRegistry: []
+};
+let timers = {};
+let fId = 1, tId = 1, mId = 1;
+let pendingPinRole = null;
+let myFencerId = null;
+let swapContext = null;
+let boutEditContext = null;
+
+// Expose to window so Firebase ES module can access
+window._S = S;
+Object.defineProperty(window, '_fId', { get:()=>fId, set:v=>{fId=v;} });
+Object.defineProperty(window, '_tId', { get:()=>tId, set:v=>{tId=v;} });
+Object.defineProperty(window, '_mId', { get:()=>mId, set:v=>{mId=v;} });
+
+// Called by Firebase when remote state arrives — re-render everything
+window.fbOnRemoteUpdate = function() {
+  renderEventInfo();
+  renderFencers();
+  renderTeamsPreview();
+  updateGenCard();
+  if (S.started) {
+    if (S.currentTab === 'matches')   renderMatches();
+    else if (S.currentTab === 'bracket')   renderBracket();
+    else if (S.currentTab === 'standings') renderStandings();
+    else if (S.currentTab === 'scoring' && S.activeMatchId) renderScoring();
+    else { renderMatches(); }
+  }
+};
+
+// ── Sync helpers — called after every state mutation ─────────
+function pushState() {
+  if (window.fbPushState) {
+    window.fbSetIgnore && window.fbSetIgnore();
+    window.fbPushState();
+  }
+}
+function pushRegistry() {
+  if (window.fbPushRegistry) window.fbPushRegistry();
+}
+
+// ════════════════════════════════════════════════
+// PERSISTENCE (Firebase-backed)
+// ════════════════════════════════════════════════
+function saveRegistry() { pushRegistry(); }
+function loadRegistry() { /* handled by Firebase onValue subscription */ }
+// Committee utility: wipe the entire registry
+function clearAllRegistry() {
+  if (S.role !== 'committee') { showToast('Committee only'); return; }
+  if (!confirm('Clear ALL registered competitor PINs? They will need to re-register.')) return;
+  S.compRegistry = [];
+  pushRegistry();
+  showToast('Registry cleared ✓');
+}
+
+
+// ════════════════════════════════════════════════
+// PIN SYSTEM — staff roles
+// ════════════════════════════════════════════════
+function promptPin(role) {
+  pendingPinRole = role;
+  const titles = { referee: '⚖ Referee PIN', committee: '🛡 Committee PIN' };
+  document.getElementById('pinModalTitle').textContent = titles[role];
+  document.getElementById('pinModalSub').textContent = role === 'committee' ? 'Committee access only' : 'Referees only';
+  document.getElementById('pinError').textContent = '';
+  ['pin0','pin1','pin2','pin3'].forEach(id => document.getElementById(id).value = '');
+  closeModal('roleModal');
+  openModal('pinModal');
+  setTimeout(() => document.getElementById('pin0').focus(), 300);
+}
+
+function pinInput(idx) {
+  const el = document.getElementById('pin'+idx);
+  if (el.value.length === 1 && idx < 3) document.getElementById('pin'+(idx+1)).focus();
+}
+function pinKey(e, idx) {
+  if (e.key === 'Backspace' && !document.getElementById('pin'+idx).value && idx > 0)
+    document.getElementById('pin'+(idx-1)).focus();
+}
+function pinInput2(prefix, idx) {
+  const el = document.getElementById(prefix+idx);
+  if (el.value.length === 1 && idx < 3) document.getElementById(prefix+(idx+1)).focus();
+}
+// Generic pin handler for register/login pins
+function pinInput3(prefix, idx) {
+  const el = document.getElementById(prefix+'Pin'+idx);
+  if (el && el.value.length === 1 && idx < 3) {
+    const next = document.getElementById(prefix+'Pin'+(idx+1));
+    if (next) next.focus();
+  }
+}
+function pinKey3(e, prefix, idx) {
+  if (e.key === 'Backspace' && !document.getElementById(prefix+'Pin'+idx).value && idx > 0) {
+    const prev = document.getElementById(prefix+'Pin'+(idx-1));
+    if (prev) prev.focus();
+  }
+}
+
+function submitPin() {
+  const entered = [0,1,2,3].map(i => document.getElementById('pin'+i).value).join('');
+  const expected = pendingPinRole === 'committee' ? S.pins.committee : S.pins.referee;
+  if (entered === expected) {
+    closeModal('pinModal');
+    setRole(pendingPinRole);
+  } else {
+    document.getElementById('pinError').textContent = 'Incorrect PIN — try again';
+    ['pin0','pin1','pin2','pin3'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('pin0').focus();
+  }
+}
+
+function openPasscodeModal() {
+  if (S.role !== 'committee') { showToast('Committee access only'); return; }
+  ['newRef0','newRef1','newRef2','newRef3','newCom0','newCom1','newCom2','newCom3'].forEach(id => document.getElementById(id).value = '');
+  openModal('passcodeModal');
+}
+
+function savePasscodes() {
+  const ref = [0,1,2,3].map(i => document.getElementById('newRef'+i).value).join('');
+  const com = [0,1,2,3].map(i => document.getElementById('newCom'+i).value).join('');
+  if (ref.length === 4 && /^\d{4}$/.test(ref)) S.pins.referee = ref;
+  if (com.length === 4 && /^\d{4}$/.test(com)) S.pins.committee = com;
+  pushState();
+  closeModal('passcodeModal');
+  showToast('Passcodes updated ✓');
+}
+
+// ════════════════════════════════════════════════
+// COMPETITOR FLOW
+// ════════════════════════════════════════════════
+function openCompetitorFlow() {
+  closeModal('roleModal');
+  openModal('compFlowModal');
+}
+
+function openCompRegister() {
+  closeModal('compFlowModal');
+  document.getElementById('regName').value = '';
+  document.getElementById('regLevel').value = 'beginner';
+  ['regPin0','regPin1','regPin2','regPin3'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('regError').textContent = '';
+  openModal('compRegModal');
+  setTimeout(() => document.getElementById('regName').focus(), 300);
+}
+
+function submitCompRegister() {
+  const name = document.getElementById('regName').value.trim();
+  const level = document.getElementById('regLevel').value;
+  const pin = [0,1,2,3].map(i => document.getElementById('regPin'+i).value).join('');
+  const errEl = document.getElementById('regError');
+
+  if (!name) { errEl.textContent = 'Enter your name'; return; }
+  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) { errEl.textContent = 'Set a 4-digit PIN'; return; }
+
+  // Check name not already registered
+  const existing = S.compRegistry.find(r => r.name.toLowerCase() === name.toLowerCase());
+  if (existing) { errEl.textContent = 'Name already registered — sign in instead'; return; }
+
+  // Use a single id for both registry entry and fencer object
+  const newId = fId++;
+  S.compRegistry.push({ id: newId, name, level, pin });
+  saveRegistry();
+
+  S.fencers.push({ id: newId, name, level, bailed: false });
+  myFencerId = newId;
+  pushRegistry(); pushState();
+
+  closeModal('compRegModal');
+  showToast(`Registered! Now sign in, ${name} 🤺`);
+  // Send straight to login so they verify their PIN and get their personalised view
+  openCompLogin();
+}
+
+function openCompLogin() {
+  closeModal('compFlowModal');
+  const sel = document.getElementById('loginNameSel');
+  if (S.compRegistry.length === 0) {
+    closeModal('compLoginModal');
+    openModal('compFlowModal');
+    showToast('No registered competitors yet');
+    return;
+  }
+  sel.innerHTML = S.compRegistry.map(r => `<option value="${r.id}">${r.name} (${r.level==='intermediate'?'Int/Adv':r.level==='novice'?'Novice':'Beginner'})</option>`).join('');
+  ['loginPin0','loginPin1','loginPin2','loginPin3'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('loginError').textContent = '';
+  openModal('compLoginModal');
+}
+
+function submitCompLogin() {
+  const selId = parseInt(document.getElementById('loginNameSel').value);
+  const pin = [0,1,2,3].map(i => document.getElementById('loginPin'+i).value).join('');
+  const errEl = document.getElementById('loginError');
+  const reg = S.compRegistry.find(r => r.id === selId);
+  if (!reg) { errEl.textContent = 'Select your name'; return; }
+  if (pin !== reg.pin) {
+    errEl.textContent = 'Incorrect PIN — try again';
+    ['loginPin0','loginPin1','loginPin2','loginPin3'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('loginPin0').focus();
+    return;
+  }
+  // Find matching fencer in S.fencers or create if not yet there
+  let fencer = S.fencers.find(f => f.name === reg.name && !f.bailed);
+  if (!fencer) {
+    fencer = { id: reg.id, name: reg.name, level: reg.level, bailed: false };
+    S.fencers.push(fencer);
+  }
+  myFencerId = fencer.id;
+  closeModal('compLoginModal');
+  setRole('competitor');
+  showToast(`Welcome back, ${reg.name}! 🤺`);
+}
+
+function submitPin() {
+  const entered = [0,1,2,3].map(i => document.getElementById('pin'+i).value).join('');
+  const expected = pendingPinRole === 'committee' ? S.pins.committee : S.pins.referee;
+  if (entered === expected) {
+    closeModal('pinModal');
+    setRole(pendingPinRole);
+  } else {
+    document.getElementById('pinError').textContent = 'Incorrect PIN — try again';
+    ['pin0','pin1','pin2','pin3'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('pin0').focus();
+  }
+}
+
+function openPasscodeModal() {
+  if (S.role !== 'committee') { showToast('Committee access only'); return; }
+  ['newRef0','newRef1','newRef2','newRef3','newCom0','newCom1','newCom2','newCom3'].forEach(id => document.getElementById(id).value = '');
+  openModal('passcodeModal');
+}
+
+function savePasscodes() {
+  const ref = [0,1,2,3].map(i => document.getElementById('newRef'+i).value).join('');
+  const com = [0,1,2,3].map(i => document.getElementById('newCom'+i).value).join('');
+  if (ref.length === 4 && /^\d{4}$/.test(ref)) S.pins.referee = ref;
+  if (com.length === 4 && /^\d{4}$/.test(com)) S.pins.committee = com;
+  closeModal('passcodeModal');
+  showToast('Passcodes updated ✓');
+}
+
+// ════════════════════════════════════════════════
+// ROLE
+// ════════════════════════════════════════════════
+function openRoleModal() { openModal('roleModal'); }
+
+function setRole(role) {
+  S.role = role;
+  const icons = { referee:'⚖', competitor:'🤺', committee:'🛡' };
+  const labels = { referee:'Referee', competitor:'Competitor', committee:'Committee' };
+  document.getElementById('roleIcon').textContent = icons[role];
+  document.getElementById('roleText').textContent = labels[role];
+  document.getElementById('roleBtn').className = 'role-badge ' + role;
+  document.getElementById('committeeStrip').style.display = role === 'committee' ? 'block' : 'none';
+  if (role !== 'competitor') myFencerId = null;
+  closeModal('roleModal');
+  showToast(`Role: ${labels[role]}`);
+  renderEventInfo();
+  renderFencers();
+  renderTeamsPreview();
+  if (S.currentTab !== 'setup') refreshCurrentTab();
+}
+
+// ════════════════════════════════════════════════
+// FORMAT CALC
+// ════════════════════════════════════════════════
+function calcFormat(n) {
+  const points = n <= 4 ? 45 : 30;
+  return { points, bouts: points/5, teams: n, structure: 'DE' };
+}
+
+// ════════════════════════════════════════════════
+// FENCERS
+// ════════════════════════════════════════════════
+function addFencer() {
+  const newF = { id: fId++, name: '', level: 'beginner', bailed: false };
+  S.fencers.push(newF);
+  // If competitor role, claim this row as theirs
+  if (S.role === 'competitor' && !myFencerId) myFencerId = newF.id;
+  renderFencers();
+}
+
+function removeFencer(id) {
+  // Only remove self (competitor) or any (committee/referee)
+  const f = S.fencers.find(x => x.id === id);
+  if (!f) return;
+  if (S.role === 'committee' || S.role === 'referee') {
+    S.fencers = S.fencers.filter(x => x.id !== id);
+    S.compRegistry = S.compRegistry.filter(r => r.id !== id && r.name.toLowerCase() !== f.name.toLowerCase());
+    saveRegistry(); pushState();
+    renderFencers(); updateGenCard();
+    showToast(`${f.name} removed & deregistered`);
+  } else {
+    showToast('You can only remove yourself');
+  }
+}
+
+function selfRemove(id) {
+  const f = S.fencers.find(x => x.id === id);
+  S.fencers = S.fencers.filter(x => x.id !== id);
+  // Also clear own registry entry so they can re-register fresh
+  if (f) {
+    S.compRegistry = S.compRegistry.filter(r => r.id !== id);
+    saveRegistry();
+  }
+  if (myFencerId === id) myFencerId = null;
+  pushState();
+  renderFencers(); updateGenCard();
+}
+
+function updateFencer(id, field, val) {
+  const f = S.fencers.find(x => x.id === id);
+  if (f) { f[field] = val; updateGenCard(); }
+}
+
+function updateTeamName(id, val) {
+  const t = S.teams.find(x => x.id === id);
+  if (t) { t.name = val; pushState(); }
+}
+
+function renderEventInfo() {
+  const el = document.getElementById('eventInfoCard');
+  if (!el) return;
+  const isCom = S.role === 'committee';
+  if (isCom) {
+    el.innerHTML = `<div class="card">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="text" id="evtDate" value="${S.eventInfo.date}" oninput="S.eventInfo.date=this.value;pushState()">
+      </div>
+      <div class="form-group">
+        <label>Venue</label>
+        <input type="text" id="evtVenue" value="${S.eventInfo.venue}" oninput="S.eventInfo.venue=this.value;pushState()">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>Start time</label>
+        <input type="time" id="evtTime" value="${S.eventInfo.time}" oninput="S.eventInfo.time=this.value;pushState()">
+      </div>
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="card" style="display:grid;gap:2px;">
+      <div class="info-row"><span class="lbl">Date</span><span>${S.eventInfo.date}</span></div>
+      <div class="info-row"><span class="lbl">Venue</span><span style="text-align:right;max-width:200px;">${S.eventInfo.venue}</span></div>
+      <div class="info-row" style="border-bottom:none"><span class="lbl">Time</span><span>${S.eventInfo.time}</span></div>
+      ${!S.role?`<div style="font-size:11px;color:var(--muted);padding-top:4px;text-align:center;">Set your role to register</div>`:''}
+    </div>`;
+  }
+}
+
+function renderFencers() {
+  const active = S.fencers.filter(f => !f.bailed);
+  const bailed = S.fencers.filter(f => f.bailed);
+  const isPriv = S.role === 'committee' || S.role === 'referee';
+  const isComp = S.role === 'competitor';
+  const el = document.getElementById('fencerList');
+  let html = active.map((f, i) => {
+    const isOwn = isComp && f.id === myFencerId;
+    const canEdit = isPriv || isOwn;
+    if (canEdit) {
+      return `<div class="fencer-row">
+        <span class="num">${i+1}</span>
+        <input type="text" placeholder="${isOwn?'Your name':'Fencer name'}" value="${f.name}"
+          oninput="updateFencer(${f.id},'name',this.value)">
+        <select class="level-sel" onchange="updateFencer(${f.id},'level',this.value)">
+          <option value="beginner" ${f.level==='beginner'?'selected':''}>Beginner</option>
+          <option value="novice" ${f.level==='novice'?'selected':''}>Novice</option>
+          <option value="intermediate" ${f.level==='intermediate'?'selected':''}>Int / Advanced</option>
+        </select>
+        ${isPriv
+          ? `<button class="del-btn" onclick="removeFencer(${f.id})">×</button>`
+          : `<button class="del-btn" onclick="selfRemove(${f.id})" title="Remove yourself">×</button>`
+        }
+      </div>`;
+    } else {
+      // read-only row for other fencers (competitor viewing others)
+      const badgeCls = f.level==='intermediate'?'badge-gold':f.level==='novice'?'badge-red':'badge-blue';
+      const levelLabel = f.level==='intermediate'?'Int/Adv':f.level==='novice'?'Novice':'Beginner';
+      return `<div class="fencer-row" style="opacity:.8;">
+        <span class="num">${i+1}</span>
+        <span style="flex:1;font-size:13px;color:var(--white);">${f.name||'(unnamed)'}</span>
+        <span class="badge ${badgeCls}" style="font-size:10px;">${levelLabel}</span>
+      </div>`;
+    }
+  }).join('');
+  if (bailed.length) {
+    html += `<div style="font-size:11px;color:var(--muted);margin-top:8px;padding-top:6px;border-top:1px solid var(--border);">
+      Withdrawn: ${bailed.map(f=>`<span style="text-decoration:line-through;margin-right:6px;">${f.name}</span>`).join('')}
+    </div>`;
+  }
+  el.innerHTML = html;
+  updateGenCard();
+}
+
+function updateGenCard() {
+  const n = S.fencers.filter(f => !f.bailed && f.name.trim()).length;
+  const gc = document.getElementById('genCard');
+  const isCom = S.role === 'committee';
+  if (n >= 4) {
+    gc.style.display = 'block';
+    const numTeams = calcTeamCount(n);
+    const fmt = calcFormat(numTeams);
+    document.getElementById('teamSizeInfo').textContent =
+      `${n} fencers → ${numTeams} teams (3–4 per team, no one left out)`;
+    document.getElementById('formatLabel').textContent = `${fmt.points} pts · ${fmt.bouts} bouts`;
+    document.getElementById('structureLabel').textContent = `DE · ${Math.ceil(Math.log2(numTeams))} rounds`;
+    const genBtn = document.getElementById('genTeamsBtn');
+    if (genBtn) genBtn.style.display = isCom ? 'flex' : 'none';
+    const genNote = document.getElementById('genTeamsNote');
+    if (genNote) genNote.style.display = isCom ? 'none' : 'block';
+  } else {
+    gc.style.display = 'none';
+  }
+  // start btn
+  const sb = document.getElementById('startCompBtn');
+  if (S.teams.length && !S.started) {
+    if (isCom) {
+      sb.style.display = 'block';
+      sb.innerHTML = `<button class="btn btn-primary btn-block btn-lg" onclick="startCompetition()">Start Competition →</button>`;
+    } else if (S.role === 'referee') {
+      sb.style.display = 'block';
+      sb.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--muted);padding:8px;">Waiting for committee to start the competition</div>`;
+    } else {
+      sb.style.display = 'none';
+    }
+  } else {
+    sb.style.display = 'none';
+  }
+}
+
+// ════════════════════════════════════════════════
+// TEAM GENERATION
+// ════════════════════════════════════════════════
+
+const WORTH = { beginner: 1, novice: 2, intermediate: 3 };
+function fencerWorth(f) { return WORTH[f.level] || 1; }
+function teamWorth(t) {
+  return t.fencers.reduce((sum, id) => {
+    const f = S.fencers.find(x => x.id === id);
+    return sum + (f ? fencerWorth(f) : 1);
+  }, 0);
+}
+
+// Best even team count so every fencer is on a team (3–4 per team)
+function calcTeamCount(n) {
+  for (let t = 10; t >= 2; t -= 2) {
+    const base = Math.floor(n / t);
+    if (base >= 3 && base <= 4) return t;
+    if (base === 3 && (n % t) <= t) return t;
+  }
+  for (let t = 10; t >= 2; t -= 2) {
+    if (Math.floor(n / t) >= 3) return t;
+  }
+  return 2;
+}
+
+function generateTeams() {
+  if (S.role !== 'committee') { showToast('Committee only'); return; }
+  const valid = S.fencers.filter(f => !f.bailed && f.name.trim());
+  if (valid.length < 4) { showToast('Need at least 4 fencers'); return; }
+
+  const numTeams = calcTeamCount(valid.length);
+  S.format = calcFormat(numTeams);
+
+  const names = ['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India','Juliet'];
+  S.teams = Array.from({length: numTeams}, (_, i) => ({ id: tId++, name: names[i], fencers: [] }));
+
+  // Shuffle within each skill tier so draws vary
+  const ints  = shuffle(valid.filter(f => f.level === 'intermediate'));
+  const novs  = shuffle(valid.filter(f => f.level === 'novice'));
+  const begs  = shuffle(valid.filter(f => f.level === 'beginner'));
+  const lower = [...novs, ...begs]; // non-intermediates together
+
+  // ── PASS 1: guarantee at least one int/adv per team ──────────────────
+  // Distribute ints round-robin first (one per team). Extras go to pool.
+  const intPool = [];
+  ints.forEach((f, i) => {
+    if (i < numTeams) S.teams[i].fencers.push(f.id);
+    else intPool.push(f);
+  });
+
+  // ── PASS 2: guarantee at least one beginner/novice per team ──────────
+  // Assign one lower-skill fencer to each team that doesn't have one yet,
+  // picking the team with lowest worth each time.
+  const lowerPool = [...lower];
+  // Teams that have no lower-skill fencer yet get first pick
+  const teamsNeedingLower = S.teams.filter(t =>
+    !t.fencers.some(id => {
+      const f = S.fencers.find(x => x.id === id);
+      return f && f.level !== 'intermediate';
+    })
+  );
+  teamsNeedingLower.forEach(t => {
+    if (lowerPool.length) t.fencers.push(lowerPool.shift().id);
+    // If no lower-skill left, team gets an extra int instead (handled in pass 3)
+  });
+
+  // ── PASS 3: worth-based fill for all remaining fencers ───────────────
+  // Remaining = extra ints + remaining lower-skill fencers, sorted desc by worth
+  const remaining = [...intPool, ...lowerPool]
+    .sort((a, b) => fencerWorth(b) - fencerWorth(a));
+
+  remaining.forEach(f => {
+    // Assign to the team with lowest current worth (that still has room)
+    const eligible = S.teams.filter(t => t.fencers.length < 4);
+    const target = (eligible.length ? eligible : S.teams)
+      .reduce((a, b) => teamWorth(a) <= teamWorth(b) ? a : b);
+    target.fencers.push(f.id);
+  });
+
+  // ── PASS 4: safety overflow cap at 4 ─────────────────────────────────
+  let overflow = [];
+  S.teams.forEach(t => { if (t.fencers.length > 4) overflow.push(...t.fencers.splice(4)); });
+  overflow.forEach(fid => {
+    const t = S.teams.reduce((a, b) => a.fencers.length <= b.fencers.length ? a : b);
+    t.fencers.push(fid);
+  });
+
+  buildBracket(numTeams);
+  pushState();
+  renderTeamsPreview();
+  updateGenCard();
+}
+
+function buildBracket(numTeams) {
+  S.matches = []; S.bracket = [];
+  const PISTES = [1,2,3,4,5];
+
+  // Round 1: pair teams by closest worth (snake-seed: 1v2, 3v4, etc after sorting by worth)
+  // Sort teams by worth descending, then pair adjacent: closest-worth opponents
+  const sortedByWorth = [...S.teams].sort((a, b) => teamWorth(b) - teamWorth(a));
+  // Pair closest: [0,1], [2,3], [4,5]… — adjacent teams have most similar worth
+  const r1Teams = [];
+  for (let i = 0; i < sortedByWorth.length; i += 2) {
+    if (i + 1 < sortedByWorth.length) {
+      r1Teams.push([sortedByWorth[i], sortedByWorth[i+1]]);
+    } else {
+      r1Teams.push([sortedByWorth[i], null]); // bye
+    }
+  }
+
+  let round = 1;
+  // Build round 1 from paired list
+  const r1MatchIds = []; const r1Next = []; let pi = 0;
+  r1Teams.forEach(([tA, tB]) => {
+    if (!tB) { r1Next.push({...tA, isBye:true}); return; }
+    const m = { id:mId++, round:1, piste:PISTES[pi%5],
+      teamA:tA.id, teamB:tB.id,
+      bouts:[], scoreA:0, scoreB:0, target:S.format.points,
+      status:'pending', winner:null };
+    S.matches.push(m); r1MatchIds.push(m.id);
+    r1Next.push({ id:'TBD_'+m.id, fromMatch:m.id }); pi++;
+  });
+  S.bracket.push({ round:1, label:roundLabel(1, numTeams), matchIds:r1MatchIds });
+
+  // Build subsequent rounds (TBD slots, shuffle for fairness)
+  let roundTeams = r1Next; round = 2;
+  while (roundTeams.length > 1) {
+    const roundMatchIds = []; const next = []; pi = 0;
+    for (let i = 0; i < roundTeams.length; i+=2) {
+      if (i+1 >= roundTeams.length) { next.push({...roundTeams[i],isBye:true}); continue; }
+      const m = { id:mId++, round, piste:PISTES[pi%5],
+        teamA:roundTeams[i].id, teamB:roundTeams[i+1].id,
+        bouts:[], scoreA:0, scoreB:0, target:S.format.points,
+        status:'waiting', winner:null };
+      S.matches.push(m); roundMatchIds.push(m.id);
+      next.push({ id:'TBD_'+m.id, fromMatch:m.id }); pi++;
+    }
+    S.bracket.push({ round, label:roundLabel(round, roundTeams.length), matchIds:roundMatchIds });
+    roundTeams = next; round++;
+  }
+}
+
+function roundLabel(r, n) {
+  if(n===2) return 'Grand Final';
+  if(n===4) return 'Semi-Finals';
+  if(n===8) return 'Quarter-Finals';
+  return `Round ${r}`;
+}
+
+function renderTeamsPreview() {
+  const el = document.getElementById('teamsPreview');
+  if (!S.teams.length) { el.innerHTML=''; return; }
+  el.innerHTML = `<div class="section-head">Generated Teams</div>` +
+    S.teams.map(t => {
+      const fd = t.fencers.map(id => S.fencers.find(f=>f.id===id)).filter(Boolean);
+      // Competitor can only rename their own team
+      const myTeam = S.role==='competitor' && myFencerId && t.fencers.includes(myFencerId);
+      const canRename = S.role==='committee' || S.role==='referee' || myTeam;
+      return `<div class="team-card">
+        <div class="team-card-header">
+          ${canRename
+            ? `<input class="team-name-edit" type="text" value="${t.name}" onchange="updateTeamName(${t.id},this.value)" title="Tap to rename">`
+            : `<span style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;color:var(--white);">${t.name}</span>`
+          }
+          <div style="display:flex;gap:5px;align-items:center;">
+            <span class="badge badge-muted">${fd.length} fencers</span>
+          </div>
+        </div>
+        <ul class="fencer-list">
+          ${fd.map(f=>`<li>
+            <span class="dot ${f.level==='intermediate'?'int-dot':f.level==='novice'?'nov-dot':''}"></span>
+            ${f.name}
+            <span class="badge ${f.level==='intermediate'?'badge-gold':f.level==='novice'?'badge-red':'badge-blue'}" style="font-size:9px;padding:1px 5px;">${f.level==='intermediate'?'Int/Adv':f.level==='novice'?'Novice':'Beginner'}</span>
+          </li>`).join('')}
+        </ul>
+      </div>`;
+    }).join('');
+}
+
+// ════════════════════════════════════════════════
+// START
+// ════════════════════════════════════════════════
+function startCompetition() {
+  S.started = true;
+  S.matches.filter(m=>m.round===1).forEach(m=>initBouts(m));
+  pushState();
+  showTab('matches');
+  showToast('En garde! 🤺 Competition started');
+}
+
+function initBouts(match) {
+  const tA = S.teams.find(t=>t.id===match.teamA);
+  const tB = S.teams.find(t=>t.id===match.teamB);
+  if (!tA||!tB) return;
+  const fA = tA.fencers.map(id=>S.fencers.find(f=>f.id===id)).filter(Boolean);
+  const fB = tB.fencers.map(id=>S.fencers.find(f=>f.id===id)).filter(Boolean);
+  const nb = match.target/5;
+  match.bouts = Array.from({length:nb},(_,i)=>({
+    boutNum:i+1, fencerA:fA[i%fA.length]?.name||'?', fencerB:fB[i%fB.length]?.name||'?',
+    ptsA:0, ptsB:0, status:i===0?'active':'pending',
+    cards:[] // [{side:'A'|'B', type:'yellow'|'red', reason:''}]
+  }));
+}
+
+// ════════════════════════════════════════════════
+// MATCH RENDERING
+// ════════════════════════════════════════════════
+function renderMatches() {
+  const el = document.getElementById('matchesContent');
+  if (!S.started) { el.innerHTML=emptyState('⚔','Complete setup to start'); return; }
+  const isPriv = S.role==='referee'||S.role==='committee';
+  const byRound = {};
+  S.matches.forEach(m=>{ if(!byRound[m.round]) byRound[m.round]=[]; byRound[m.round].push(m); });
+  let html = '';
+  Object.keys(byRound).sort((a,b)=>a-b).forEach(r=>{
+    const label = S.bracket.find(b=>b.round===parseInt(r))?.label||`Round ${r}`;
+    html += `<div class="section-head">${label}</div>`;
+    byRound[r].forEach(m => { html += renderMatchCard(m, isPriv); });
+  });
+  el.innerHTML = html;
+}
+
+function renderMatchCard(m, isPriv) {
+  const tA = S.teams.find(t=>t.id===m.teamA);
+  const tB = S.teams.find(t=>t.id===m.teamB);
+  if (!tA||!tB) return '';
+  const myTeam = myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId)) : null;
+  const isMyMatch = myTeam && (myTeam.id===m.teamA || myTeam.id===m.teamB);
+  const sc = m.status==='live'?'live':m.status==='complete'?'complete':'';
+  const myBorder = isMyMatch && m.status!=='complete' ? 'border-color:var(--gold);' : '';
+  const sb = m.status==='live'?'<span class="badge badge-gold">LIVE</span>':
+             m.status==='complete'?'<span class="badge badge-green">DONE</span>':
+             m.status==='pending'?'<span class="badge badge-blue">UP NEXT</span>':
+             '<span class="badge badge-muted">WAITING</span>';
+  const myBadge = isMyMatch ? '<span class="badge badge-gold" style="font-size:9px;">MY MATCH</span>' : '';
+  const canScore = isPriv && (m.status==='pending'||m.status==='live');
+  // Everyone can view any started or finished match; only 'waiting' (TBD bracket slots) are not tappable
+  const canView = m.status==='live'||m.status==='complete'||m.status==='pending';
+  const clickable = canScore || canView;
+  const aLead = m.scoreA>m.scoreB, bLead = m.scoreB>m.scoreA;
+  const ab = m.bouts?.find(b=>b.status==='active');
+  const tapHint = canScore
+    ? `<div style="text-align:center;padding-top:7px;font-size:11px;color:var(--blue2);">Tap to ${m.status==='live'?'continue scoring':'start'} →</div>`
+    : canView
+    ? `<div style="text-align:center;padding-top:7px;font-size:11px;color:var(--muted);">Tap to view ${m.status==='complete'?'results':'details'} →</div>`
+    : '';
+  return `<div class="match-card ${sc}" style="${myBorder}${clickable?'cursor:pointer':''}" onclick="${clickable?'openScoring('+m.id+')':''}">
+    <div class="match-header">
+      <span class="match-meta">Piste ${m.piste}</span>
+      <div style="display:flex;gap:5px;align-items:center;">${myBadge}${sb}<span class="match-meta">${m.target}pts</span></div>
+    </div>
+    <div class="match-teams">
+      <div class="match-team">
+        <div class="match-team-name" style="${myTeam&&myTeam.id===m.teamA?'color:var(--gold);':''}">${tA.name}${myTeam&&myTeam.id===m.teamA?' ★':''}</div>
+        <div class="match-team-score ${aLead&&m.status!=='pending'?'leading':'losing'}">${m.scoreA}</div>
+      </div>
+      <div class="match-vs">VS</div>
+      <div class="match-team" style="text-align:right">
+        <div class="match-team-name" style="${myTeam&&myTeam.id===m.teamB?'color:var(--gold);':''}">${tB.name}${myTeam&&myTeam.id===m.teamB?' ★':''}</div>
+        <div class="match-team-score ${bLead&&m.status!=='pending'?'leading':'losing'}">${m.scoreB}</div>
+      </div>
+    </div>
+    ${m.status!=='pending'&&m.status!=='waiting'?`<div class="progress-bar"><div class="progress-fill a" style="width:${Math.round(m.scoreA/m.target*100)}%"></div><div class="progress-fill b" style="width:${Math.round(m.scoreB/m.target*100)}%;float:right"></div></div>`:''}
+    ${ab?`<div style="display:flex;justify-content:space-between;padding-top:7px;border-top:1px solid var(--border);margin-top:6px;font-size:11px;color:var(--muted);">
+      <span>Bout ${ab.boutNum}/${m.bouts.length}</span><span>${ab.fencerA} vs ${ab.fencerB}</span></div>`:''}
+    ${tapHint}
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+// SCORING
+// ════════════════════════════════════════════════
+function openScoring(matchId) {
+  S.activeMatchId = matchId;
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m) return;
+  const isPriv = S.role==='referee'||S.role==='committee';
+  // Only referee/committee can activate a pending match to start scoring
+  if (m.status==='pending' && isPriv) {
+    m.status='live'; if(!m.bouts?.length) initBouts(m);
+  }
+  // Block waiting (TBD bracket) slots for non-priv
+  if (m.status==='waiting' && !isPriv) { showToast('Match not yet scheduled'); return; }
+  showTab('scoring');
+}
+
+function renderScoring() {
+  const m = S.matches.find(x=>x.id===S.activeMatchId);
+  const el = document.getElementById('scoringContent');
+  if (!m) { el.innerHTML=emptyState('⚔','No match selected'); return; }
+  const tA = S.teams.find(t=>t.id===m.teamA);
+  const tB = S.teams.find(t=>t.id===m.teamB);
+  const ab = m.bouts.find(b=>b.status==='active')||m.bouts[m.bouts.length-1];
+  const boutIdx = m.bouts.indexOf(ab);
+  const tKey = m.id+'_'+boutIdx;
+  if (!timers[tKey]) timers[tKey]={seconds:180,running:false};
+  const t = timers[tKey];
+  const mins = Math.floor(t.seconds/60);
+  const secs = (t.seconds%60).toString().padStart(2,'0');
+  const tc = t.seconds<=30?'danger':t.seconds<=60?'warning':'';
+  const isPriv = S.role==='referee'||S.role==='committee';
+  const canBail = false; // bail-out feature removed
+  const fA = S.fencers.find(f=>f.name===ab?.fencerA);
+  const fB = S.fencers.find(f=>f.name===ab?.fencerB);
+
+  // Swap button: referee and committee can swap on pending/active bouts
+  const swapBtnA = isPriv && m.status!=='complete'
+    ? `<button class="bail-btn" style="background:rgba(46,125,212,.15);border-color:rgba(46,125,212,.5);color:var(--blue2);" onclick="openSwap(${m.id},${boutIdx},'A')">⇄ Swap</button>` : '';
+  const swapBtnB = isPriv && m.status!=='complete'
+    ? `<button class="bail-btn" style="background:rgba(46,125,212,.15);border-color:rgba(46,125,212,.5);color:var(--blue2);" onclick="openSwap(${m.id},${boutIdx},'B')">⇄ Swap</button>` : '';
+  const bailBtnA = '';
+  const bailBtnB = '';
+
+  el.innerHTML = `
+    <div style="padding-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button class="btn btn-ghost btn-sm" onclick="showTab('matches')">← Back</button>
+        <span class="match-meta" style="flex:1;text-align:center">Piste ${m.piste}</span>
+        <span class="badge ${m.status==='live'?'badge-gold':m.status==='complete'?'badge-green':'badge-muted'}">${m.status.toUpperCase()}</span>
+      </div>
+      <div class="score-teams">
+        <div class="score-team-block"><div class="score-team-name">${tA?.name}</div><div class="score-total a">${m.scoreA}</div></div>
+        <div style="text-align:center;align-self:flex-end;padding-bottom:3px;font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--muted);">of</div>
+        <div class="score-team-block right"><div class="score-team-name">${tB?.name}</div><div class="score-total b">${m.scoreB}</div></div>
+      </div>
+      <div style="text-align:center;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;">Target: ${m.target} pts · ${m.bouts.length} bouts</div>
+      <div class="progress-bar" style="height:5px;margin:8px 0;"><div class="progress-fill a" style="width:${Math.round(m.scoreA/m.target*100)}%"></div><div class="progress-fill b" style="width:${Math.round(m.scoreB/m.target*100)}%;float:right"></div></div>
+    </div>
+
+    ${m.status==='complete'?`
+      <div class="champion-banner">
+        <div style="font-size:40px;">🏆</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:3px;color:var(--gold);margin:5px 0 2px;">Match Winner</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;">${(m.winner==='A'?tA:tB)?.name}</div>
+      </div>
+
+      <div class="section-head" style="margin-top:4px;">Bout Breakdown</div>
+      ${(()=>{
+        const myName = myFencerId ? S.fencers.find(f=>f.id===myFencerId)?.name : null;
+        return m.bouts.map(b=>{
+          const isMine = myName && (b.fencerA===myName || b.fencerB===myName);
+          const boutCards = (b.cards||[]).map(c=>
+            `<span title="${c.type} card">${c.type==='yellow'?'🟨':'🟥'}${c.side}</span>`
+          ).join(' ');
+          return `<div class="bout-row" style="${isMine?'background:rgba(201,162,39,.08);border-radius:6px;padding:5px 6px;border:1px solid rgba(201,162,39,.2);margin-bottom:3px;':''}">
+            <span class="bout-fencer active" style="${isMine&&b.fencerA===myName?'color:var(--gold);font-weight:600;':''}">${b.fencerA}${isMine&&b.fencerA===myName?' ★':''}</span>
+            <span class="bout-pts a">${b.ptsA}</span>
+            <span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;">B${b.boutNum}${boutCards?'<br>'+boutCards:''}</span>
+            <span class="bout-pts b">${b.ptsB}</span>
+            <span class="bout-fencer active" style="text-align:right;${isMine&&b.fencerB===myName?'color:var(--gold);font-weight:600;':''}">${b.fencerB}${isMine&&b.fencerB===myName?' ★':''}</span>
+            <span class="badge badge-muted" style="font-size:9px;margin-left:3px;">✓</span>
+          </div>`;
+        }).join('');
+      })()}
+
+      <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="showTab('matches')">← Back to Matches</button>
+    `:`
+      <div class="bout-info-box">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Bout ${ab.boutNum} / ${m.bouts.length} &nbsp;·&nbsp; <span style="color:var(--gold);">target: ${ab.boutNum*5} pts total</span></div>
+        <div class="bout-fencers-display">
+          <div>
+            <div class="bout-fencer-name a">${ab.fencerA}</div>
+            <div style="display:flex;gap:4px;margin-top:3px;">${swapBtnA}${bailBtnA}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+            <div style="display:flex;gap:5px;align-items:center;">
+              <span class="bout-pt-a">${ab.ptsA}</span>
+              <span style="color:var(--muted);font-size:18px;">–</span>
+              <span class="bout-pt-b">${ab.ptsB}</span>
+            </div>
+            <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;">this bout</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="bout-fencer-name b">${ab.fencerB}</div>
+            <div style="display:flex;gap:4px;margin-top:3px;justify-content:flex-end;">${swapBtnB}${bailBtnB}</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;">
+          <span style="color:var(--muted);">Running total</span>
+          <span style="font-family:'DM Mono',monospace;"><span style="color:var(--gold);">${m.scoreA}</span> – <span style="color:var(--blue2);">${m.scoreB}</span> <span style="color:var(--muted);">of ${m.target}</span></span>
+        </div>
+      </div>
+
+      <div class="timer-display ${tc}">${mins}:${secs}</div>
+      ${isPriv?`
+      <div style="display:flex;gap:7px;margin-bottom:8px;">
+        <button class="btn btn-ghost btn-block btn-sm" onclick="toggleTimer(${m.id},${boutIdx})">${t.running?'⏸ Pause':'▶ Start timer'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetTimer(${m.id},${boutIdx})" style="flex-shrink:0">↺</button>
+      </div>
+
+      <div class="score-btns">
+        <div class="score-btn team-a" onclick="addPoint(${m.id},'A')">
+          <div class="score-btn-label">${tA?.name}</div>
+          <div class="score-btn-name a">${ab.fencerA}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">+ 1 touch</div>
+        </div>
+        <div class="score-btn team-b" onclick="addPoint(${m.id},'B')">
+          <div class="score-btn-label">${tB?.name}</div>
+          <div class="score-btn-name b">${ab.fencerB}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">+ 1 touch</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+        <button class="btn btn-ghost btn-sm" onclick="removePoint(${m.id},'A')" style="border-color:rgba(201,162,39,.3);color:var(--gold);">↩ Undo A</button>
+        <button class="btn btn-ghost btn-sm" onclick="removePoint(${m.id},'B')" style="border-color:rgba(46,125,212,.3);color:var(--blue2);">↩ Undo B</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:4px;">
+        <button class="btn btn-sm" onclick="issueCard(${m.id},'A','yellow')" style="background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.5);color:#f0c000;padding:6px 4px;font-size:11px;">🟨 A</button>
+        <button class="btn btn-sm" onclick="issueCard(${m.id},'A','red')" style="background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.5);color:#e74c3c;padding:6px 4px;font-size:11px;">🟥 A</button>
+        <button class="btn btn-sm" onclick="issueCard(${m.id},'B','yellow')" style="background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.5);color:#f0c000;padding:6px 4px;font-size:11px;">🟨 B</button>
+        <button class="btn btn-sm" onclick="issueCard(${m.id},'B','red')" style="background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.5);color:#e74c3c;padding:6px 4px;font-size:11px;">🟥 B</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button class="btn btn-ghost btn-sm" style="flex:1;font-size:11px;" onclick="removeCard(${m.id})">↩ Undo last card</button>
+        <div style="flex:1;font-size:10px;color:var(--muted);display:flex;align-items:center;padding-left:4px;">🟨=warn &nbsp;🟥=+1 opp</div>
+      </div>
+
+      <div style="display:flex;gap:7px;margin-bottom:12px;">
+        <button class="btn btn-ghost btn-sm" onclick="promptNextBout(${m.id},'manual')" style="flex:1">⏹ End bout</button>
+        ${S.role==='committee'?`<button class="btn btn-ghost btn-sm" onclick="openPasscodeModal()" style="flex-shrink:0">🛡 PINs</button>`:''}
+      </div>
+      `:`
+      <div style="background:var(--navy2);border-radius:var(--r);padding:10px 12px;text-align:center;margin:8px 0 12px;border:1px solid var(--border);">
+        <span style="font-size:11px;color:var(--muted);">👁 View only</span>
+      </div>
+      `}
+
+      <div class="section-head">Bout Schedule ${isPriv?'<span style="font-size:10px;color:var(--muted);font-weight:400;">— tap a completed bout to edit</span>':''}</div>
+      ${(()=>{
+        const myName = myFencerId ? S.fencers.find(f=>f.id===myFencerId)?.name : null;
+        return m.bouts.map((b, bi)=>{
+          const isMine = myName && (b.fencerA===myName || b.fencerB===myName);
+          const canEdit = isPriv && b.status==='done';
+          const boutCards = (b.cards||[]).map(c=>
+            `<span title="${c.type} card">${c.type==='yellow'?'🟨':'🟥'}${c.side}</span>`
+          ).join(' ');
+          return `<div class="bout-row" 
+            style="${isMine?'background:rgba(201,162,39,.08);border-radius:6px;padding:5px 6px;border:1px solid rgba(201,162,39,.2);margin-bottom:3px;':''}${canEdit?'cursor:pointer;':''}"
+            onclick="${canEdit?'openBoutEdit('+m.id+','+bi+')':''}"
+          >
+            <span class="bout-fencer ${b.status==='active'?'active':''}" style="${isMine&&b.fencerA===myName?'color:var(--gold);font-weight:600;':''}">${b.fencerA}${isMine&&b.fencerA===myName?' ★':''}</span>
+            <span class="bout-pts a">${b.ptsA}</span>
+            <span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;">B${b.boutNum}${boutCards?'<br>'+boutCards:''}</span>
+            <span class="bout-pts b">${b.ptsB}</span>
+            <span class="bout-fencer ${b.status==='active'?'active':''}" style="text-align:right;${isMine&&b.fencerB===myName?'color:var(--gold);font-weight:600;':''}">${b.fencerB}${isMine&&b.fencerB===myName?' ★':''}</span>
+            <span class="badge ${b.status==='done'?(canEdit?'badge-blue':'badge-muted'):b.status==='active'?'badge-gold':'badge-muted'}" style="font-size:9px;margin-left:3px;">${b.status==='done'?(canEdit?'✎':'✓'):b.status==='active'?'●':'–'}</span>
+          </div>`;
+        }).join('');
+      })()}
+    `}`;
+}
+
+function addPoint(matchId, side) {
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m||m.status==='complete') return;
+  const ab = m.bouts.find(b=>b.status==='active');
+  if (!ab) return;
+  if (side==='A'){ab.ptsA++;m.scoreA++;}else{ab.ptsB++;m.scoreB++;}
+  // Check overall match target — pause and confirm before declaring winner
+  if (m.scoreA>=m.target||m.scoreB>=m.target) {
+    stopTimer(m.id+'_'+m.bouts.indexOf(ab));
+    promptMatchEnd(m.id);
+    return;
+  }
+  // Check if this bout's individual 5-pt limit reached
+  const boutTarget = ab.boutNum * 5;
+  if (m.scoreA>=boutTarget||m.scoreB>=boutTarget) {
+    stopTimer(m.id+'_'+m.bouts.indexOf(ab));
+    promptNextBout(matchId, 'target');
+    return;
+  }
+  pushState();
+  renderScoring(); renderMatches();
+}
+
+function removePoint(matchId, side) {
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m||m.status==='complete') return;
+  const ab = m.bouts.find(b=>b.status==='active');
+  if (!ab) return;
+  if (side==='A' && ab.ptsA > 0 && m.scoreA > 0) { ab.ptsA--; m.scoreA--; }
+  else if (side==='B' && ab.ptsB > 0 && m.scoreB > 0) { ab.ptsB--; m.scoreB--; }
+  else { showToast('No point to remove'); return; }
+  showToast(`Point removed — ${side==='A'?'Team A':'Team B'}`);
+  pushState();
+  renderScoring(); renderMatches();
+}
+
+function issueCard(matchId, side, cardType) {
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m||m.status==='complete') return;
+  const ab = m.bouts.find(b=>b.status==='active');
+  if (!ab) return;
+  if (!ab.cards) ab.cards = [];
+  ab.cards.push({ side, type: cardType, boutNum: ab.boutNum });
+  if (cardType === 'red') {
+    const oppSide = side === 'A' ? 'B' : 'A';
+    if (oppSide === 'A') { ab.ptsA++; m.scoreA++; }
+    else { ab.ptsB++; m.scoreB++; }
+    showToast(`🟥 Red card → ${oppSide==='A'?'Team A':'Team B'} +1 pt`);
+    if (m.scoreA>=m.target||m.scoreB>=m.target) { endMatch(m); return; }
+    const boutTarget = ab.boutNum * 5;
+    if (m.scoreA>=boutTarget||m.scoreB>=boutTarget) {
+      stopTimer(m.id+'_'+m.bouts.indexOf(ab));
+      promptNextBout(matchId, 'target');
+      return;
+    }
+  } else {
+    showToast(`🟨 Yellow card — ${side==='A'?ab.fencerA:ab.fencerB} warned`);
+  }
+  renderScoring(); renderMatches();
+}
+
+function removeCard(matchId) {
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m||m.status==='complete') return;
+  const ab = m.bouts.find(b=>b.status==='active');
+  if (!ab||!ab.cards||!ab.cards.length) { showToast('No cards to remove'); return; }
+  const last = ab.cards.pop();
+  if (last.type === 'red') {
+    const oppSide = last.side === 'A' ? 'B' : 'A';
+    if (oppSide === 'A' && ab.ptsA > 0 && m.scoreA > 0) { ab.ptsA--; m.scoreA--; }
+    else if (oppSide === 'B' && ab.ptsB > 0 && m.scoreB > 0) { ab.ptsB--; m.scoreB--; }
+  }
+  showToast(`${last.type==='red'?'🟥':'🟨'} Card removed — ${last.side==='A'?ab.fencerA:ab.fencerB}`);
+  pushState();
+  renderScoring(); renderMatches();
+}
+
+// ── Bout score editing (referee / committee) ─────────────────────
+function openBoutEdit(matchId, boutIdx) {
+  if (S.role!=='referee'&&S.role!=='committee') return;
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m) return;
+  const b = m.bouts[boutIdx];
+  if (!b||b.status!=='done') return;
+  const tA = S.teams.find(t=>t.id===m.teamA);
+  const tB = S.teams.find(t=>t.id===m.teamB);
+  boutEditContext = { matchId, boutIdx };
+  document.getElementById('boutEditTitle').textContent = `Edit Bout ${b.boutNum}`;
+  document.getElementById('boutEditSub').textContent = `${b.fencerA} vs ${b.fencerB}`;
+  document.getElementById('boutEditLabelA').textContent = `${tA?.name} — ${b.fencerA}`;
+  document.getElementById('boutEditLabelB').textContent = `${tB?.name} — ${b.fencerB}`;
+  document.getElementById('boutEditPtsA').value = b.ptsA;
+  document.getElementById('boutEditPtsB').value = b.ptsB;
+  openModal('boutEditModal');
+}
+
+function saveBoutEdit() {
+  if (!boutEditContext) return;
+  const { matchId, boutIdx } = boutEditContext;
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m) return;
+  const b = m.bouts[boutIdx];
+  const newA = parseInt(document.getElementById('boutEditPtsA').value) || 0;
+  const newB = parseInt(document.getElementById('boutEditPtsB').value) || 0;
+  // Recalculate match totals: subtract old bout score, add new
+  m.scoreA = m.scoreA - b.ptsA + newA;
+  m.scoreB = m.scoreB - b.ptsB + newB;
+  b.ptsA = newA;
+  b.ptsB = newB;
+  closeModal('boutEditModal');
+  boutEditContext = null;
+  pushState();
+  showToast(`Bout ${b.boutNum} updated`);
+  renderScoring(); renderMatches();
+}
+
+
+// reason: 'target' (5-pt limit hit) | 'time' (3 min up) | 'manual' (referee ends early)
+function promptNextBout(matchId, reason) {
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m) return;
+  const ab = m.bouts.find(b=>b.status==='active');
+  if (!ab) return;
+  const nextBout = m.bouts.find(b=>b.status==='pending');
+  const isLastBout = !nextBout;
+
+  const reasonLabel = reason==='target' ? '🎯 Bout target reached'
+                    : reason==='time'   ? '⏱ Time is up'
+                    :                     '⏹ Bout ended';
+
+  const el = document.getElementById('nextBoutModalContent');
+  el.innerHTML = `
+    <div class="modal-title">${reasonLabel}</div>
+    <p class="text-muted" style="margin-bottom:14px;">
+      Review the scores before ${isLastBout ? 'ending the match' : 'starting Bout '+(ab.boutNum+1)}.
+    </p>
+    <div style="background:var(--navy3);border-radius:var(--r);padding:14px;margin-bottom:16px;text-align:center;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em;">Bout ${ab.boutNum} final score</div>
+      <div style="display:flex;justify-content:center;align-items:center;gap:16px;">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--muted);">${(document.getElementById('app')?S.teams.find(t=>t.id===m.teamA)?.name:'A')}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--gold);line-height:1;">${ab.ptsA}</div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--muted);">–</div>
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--muted);">${S.teams.find(t=>t.id===m.teamB)?.name||'B'}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--blue2);line-height:1;">${ab.ptsB}</div>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);">Match running total: ${m.scoreA} – ${m.scoreB} (of ${m.target})</div>
+    </div>
+    <p class="text-muted" style="font-size:11px;margin-bottom:14px;">
+      Use ↩ Undo buttons on the scoring screen if scores need correcting first.
+    </p>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn btn-primary btn-block btn-lg" onclick="confirmNextBout(${matchId})">
+        ${isLastBout ? '🏁 End match' : '▶ Start Bout '+(ab.boutNum+1)}
+      </button>
+      <button class="btn btn-ghost btn-block" onclick="closeModal('nextBoutModal');renderScoring();">
+        ← Go back &amp; edit score
+      </button>
+    </div>`;
+  openModal('nextBoutModal');
+}
+
+function confirmNextBout(matchId) {
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m) return;
+  closeModal('nextBoutModal');
+  // If this was the last bout, go straight to final score review
+  const ab = m.bouts.find(b=>b.status==='active');
+  const hasNext = m.bouts.some(b=>b.status==='pending');
+  if (!hasNext) {
+    // Mark active bout done then show final review
+    if (ab) { ab.status='done'; stopTimer(m.id+'_'+m.bouts.indexOf(ab)); }
+    promptMatchEnd(matchId);
+  } else {
+    endBout(matchId);
+  }
+}
+
+function endBout(matchId) {
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m||m.status==='complete') return;
+  const ab = m.bouts.find(b=>b.status==='active');
+  if (!ab) return;
+  ab.status = 'done';
+  stopTimer(m.id+'_'+m.bouts.indexOf(ab));
+  const nb = m.bouts.find(b=>b.status==='pending');
+  if (nb) {
+    nb.status = 'active';
+    pushState();
+    showToast(`Bout ${ab.boutNum} done — Bout ${nb.boutNum} starting`);
+    renderScoring(); renderMatches();
+  } else {
+    // Last bout — show final score confirmation before declaring winner
+    promptMatchEnd(m.id);
+  }
+}
+
+function promptMatchEnd(matchId) {
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m) return;
+  const tA = S.teams.find(t=>t.id===m.teamA);
+  const tB = S.teams.find(t=>t.id===m.teamB);
+  const projectedWinner = m.scoreA >= m.scoreB ? tA?.name : tB?.name;
+  const isDraw = m.scoreA === m.scoreB;
+
+  const el = document.getElementById('nextBoutModalContent');
+  el.innerHTML = `
+    <div class="modal-title">🏁 Final Scores</div>
+    <p class="text-muted" style="margin-bottom:14px;">All bouts complete. Review the final scores before declaring a winner.</p>
+    <div style="background:var(--navy3);border-radius:var(--r);padding:16px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">${tA?.name}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:56px;color:var(--gold);line-height:1;">${m.scoreA}</div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--muted);padding:0 8px;">–</div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">${tB?.name}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:56px;color:var(--blue2);line-height:1;">${m.scoreB}</div>
+        </div>
+      </div>
+      ${isDraw
+        ? `<div style="text-align:center;font-size:12px;color:var(--gold);">Draw — highest score in last bout wins</div>`
+        : `<div style="text-align:center;font-size:12px;color:#2ecc71;">Winner: <strong>${projectedWinner}</strong></div>`
+      }
+    </div>
+    <div style="margin-bottom:14px;">
+      <div class="section-head" style="margin-top:0;">Bout breakdown</div>
+      ${m.bouts.map(b=>`
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);">
+          <span style="color:var(--muted);">Bout ${b.boutNum}</span>
+          <span style="font-family:'DM Mono',monospace;">${b.fencerA} &nbsp;<span style="color:var(--gold);">${b.ptsA}</span> – <span style="color:var(--blue2);">${b.ptsB}</span>&nbsp; ${b.fencerB}</span>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn btn-gold btn-block btn-lg" onclick="closeModal('nextBoutModal');endMatch(S.matches.find(x=>x.id===${matchId}));">
+        🏆 Confirm &amp; declare winner
+      </button>
+      <button class="btn btn-ghost btn-block" onclick="reopenLastBout(${matchId})">
+        ← Go back &amp; edit last score
+      </button>
+    </div>`;
+  openModal('nextBoutModal');
+}
+
+function reopenLastBout(matchId) {
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m) return;
+  // Reopen the last done bout as active so scores can be edited
+  const lastDone = [...m.bouts].reverse().find(b=>b.status==='done');
+  if (lastDone) lastDone.status = 'active';
+  closeModal('nextBoutModal');
+  renderScoring(); renderMatches();
+}
+
+function endMatch(m) {
+  if (!m) return;
+  m.status='complete';
+  m.winner = m.scoreA>=m.scoreB?'A':'B';
+  m.bouts.forEach((_,i)=>stopTimer(m.id+'_'+i));
+  const winner = S.teams.find(t=>t.id===(m.winner==='A'?m.teamA:m.teamB));
+  advanceBracket(m);
+  pushState();
+  renderScoring(); renderMatches(); renderBracket(); renderStandings();
+  showToast(`🏆 ${winner?.name} wins!`);
+}
+
+function advanceBracket(m) {
+  const nextRound = m.round+1;
+  const curIds = S.bracket.find(b=>b.round===m.round)?.matchIds||[];
+  const pos = curIds.indexOf(m.id);
+  const nextBr = S.bracket.find(b=>b.round===nextRound);
+  if (!nextBr) return;
+  const nextM = S.matches.find(x=>x.id===nextBr.matchIds[Math.floor(pos/2)]);
+  if (!nextM) return;
+  const winnerId = m.winner==='A'?m.teamA:m.teamB;
+  if (pos%2===0) nextM.teamA=winnerId; else nextM.teamB=winnerId;
+  const tA = S.teams.find(t=>t.id===nextM.teamA);
+  const tB = S.teams.find(t=>t.id===nextM.teamB);
+  if (tA&&tB) { nextM.status='pending'; initBouts(nextM); }
+}
+
+// ════════════════════════════════════════════════
+// FENCER SWAP (referee / committee)
+// ════════════════════════════════════════════════
+function openSwap(matchId, boutIdx, side) {
+  if (S.role!=='referee'&&S.role!=='committee') return;
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m) return;
+  const bout = m.bouts[boutIdx];
+  const teamId = side==='A' ? m.teamA : m.teamB;
+  const team = S.teams.find(t=>t.id===teamId);
+  const currentName = side==='A' ? bout.fencerA : bout.fencerB;
+
+  // Count future pending bouts with same fencer name on same side
+  const futureBouts = m.bouts.filter((b,i) => i > boutIdx && b.status==='pending' &&
+    (side==='A' ? b.fencerA===currentName : b.fencerB===currentName));
+
+  swapContext = { matchId, boutIdx, side, currentName, teamId };
+  document.getElementById('swapModalTitle').textContent = `Swap ${side==='A'?'Team A':'Team B'} Fencer`;
+  document.getElementById('swapModalSub').textContent = `Currently: ${currentName}`;
+  document.getElementById('swapScopeInfo').textContent =
+    futureBouts.length > 0
+      ? `⚠ "${currentName}" appears in ${futureBouts.length} future bout(s). Swapping will update all pending appearances.`
+      : 'This bout only.';
+
+  // Populate select with team members (excluding current fencer)
+  const teamFencers = team?.fencers
+    .map(id=>S.fencers.find(f=>f.id===id))
+    .filter(f=>f&&!f.bailed&&f.name.trim()&&f.name!==currentName) || [];
+  const sel = document.getElementById('swapSelect');
+  sel.innerHTML = `<option value="">— choose from team —</option>` +
+    teamFencers.map(f=>`<option value="${f.name}">${f.name} (${f.level})</option>`).join('');
+  document.getElementById('swapManual').value = '';
+  openModal('swapModal');
+}
+
+function confirmSwap() {
+  if (!swapContext) return;
+  const sel = document.getElementById('swapSelect').value.trim();
+  const manual = document.getElementById('swapManual').value.trim();
+  const newName = sel || manual;
+  if (!newName) { showToast('Enter or select a name'); return; }
+
+  const m = S.matches.find(x=>x.id===swapContext.matchId);
+  if (!m) return;
+  const {boutIdx, side, currentName} = swapContext;
+
+  // Update active/pending bouts that still have the old name on that side
+  m.bouts.forEach((b, i) => {
+    if (i < boutIdx) return; // don't touch completed bouts
+    if (b.status==='done') return;
+    if (side==='A' && b.fencerA===currentName) b.fencerA = newName;
+    if (side==='B' && b.fencerB===currentName) b.fencerB = newName;
+  });
+
+  closeModal('swapModal');
+  pushState();
+  renderScoring(); renderMatches();
+  showToast(`Swapped: ${currentName} → ${newName}`);
+}
+
+
+function toggleTimer(matchId, boutIdx) {
+  const k = matchId+'_'+boutIdx;
+  if (!timers[k]) timers[k]={seconds:180,running:false};
+  const t = timers[k];
+  if (t.running) { stopTimer(k); }
+  else {
+    t.running=true;
+    t.interval=setInterval(()=>{
+      t.seconds--;
+      if (t.seconds<=0) { t.seconds=0; stopTimer(k); promptNextBout(matchId,'time'); }
+      renderScoring();
+    },1000);
+  }
+  renderScoring();
+}
+function stopTimer(k) { if(timers[k]){clearInterval(timers[k].interval);timers[k].running=false;} }
+function resetTimer(matchId,boutIdx) {
+  const k=matchId+'_'+boutIdx; stopTimer(k); timers[k]={seconds:180,running:false}; renderScoring();
+}
+
+// ════════════════════════════════════════════════
+// BRACKET
+// ════════════════════════════════════════════════
+function renderBracket() {
+  const el = document.getElementById('bracketContent');
+  if (!S.started||!S.bracket.length) { el.innerHTML=emptyState('🏆','Start competition to see bracket'); return; }
+  const finalBr = S.bracket[S.bracket.length-1];
+  const finalM = finalBr?S.matches.find(m=>m.id===finalBr.matchIds[0]):null;
+  let html = '';
+  if (finalM?.status==='complete') {
+    const w = S.teams.find(t=>t.id===(finalM.winner==='A'?finalM.teamA:finalM.teamB));
+    html = `<div class="champion-banner"><div style="font-size:44px;">🥇</div><div style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:3px;color:var(--gold);margin:4px 0 2px;">Champion</div><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;">${w?.name}</div></div>`;
+  }
+  const isPriv = S.role==='referee'||S.role==='committee';
+  const myTeam = myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId)) : null;
+  S.bracket.forEach(br=>{
+    html+=`<div style="margin-bottom:18px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;">${br.label}</div>`;
+    br.matchIds.forEach(mid=>{
+      const m=S.matches.find(x=>x.id===mid); if(!m) return;
+      const tA=S.teams.find(t=>t.id===m.teamA), tB=S.teams.find(t=>t.id===m.teamB);
+      const nA=tA?.name||(m.teamA?.toString().startsWith('TBD')?'TBD':'?');
+      const nB=tB?.name||(m.teamB?.toString().startsWith('TBD')?'TBD':'?');
+      const sc=m.status==='live'?'live':m.status==='complete'?'complete':'';
+      const isMyMatch = myTeam && (myTeam.id===m.teamA || myTeam.id===m.teamB);
+      html+=`<div class="bracket-match ${sc}" style="${isMyMatch?'border-color:var(--gold);':''}" >
+        <div class="bracket-team-row ${m.status==='complete'&&m.winner==='A'?'winner':''}" onclick="${(isPriv||(S.role==='competitor'&&m.status!=='waiting'))?'openScoring('+m.id+')':''}">
+          <span class="seed">A</span>
+          <span class="bname" style="${myTeam&&myTeam.id===m.teamA?'color:var(--gold);font-weight:600;':''}">${nA}${myTeam&&myTeam.id===m.teamA?' ★':''}</span>
+          <span class="bscore">${m.scoreA}</span>
+        </div>
+        <div class="bracket-team-row ${m.status==='complete'&&m.winner==='B'?'winner':''}" onclick="${(isPriv||(S.role==='competitor'&&m.status!=='waiting'))?'openScoring('+m.id+')':''}">
+          <span class="seed">B</span>
+          <span class="bname" style="${myTeam&&myTeam.id===m.teamB?'color:var(--gold);font-weight:600;':''}">${nB}${myTeam&&myTeam.id===m.teamB?' ★':''}</span>
+          <span class="bscore">${m.scoreB}</span>
+        </div>
+        <div class="bracket-match-meta">
+          <span>Piste ${m.piste}</span><span>${m.target}pts</span>
+          <span class="badge ${m.status==='live'?'badge-gold':m.status==='complete'?'badge-green':'badge-muted'}" style="font-size:9px">${m.status}</span>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+  });
+  el.innerHTML=html;
+}
+
+// ════════════════════════════════════════════════
+// STANDINGS
+// ════════════════════════════════════════════════
+function renderStandings() {
+  const el=document.getElementById('standingsContent');
+  if (!S.started){el.innerHTML=emptyState('📊','Start competition to see standings');return;}
+  const stats=S.teams.map(t=>{
+    const ms=S.matches.filter(m=>(m.teamA===t.id||m.teamB===t.id)&&m.status==='complete');
+    const wins=ms.filter(m=>(m.winner==='A'&&m.teamA===t.id)||(m.winner==='B'&&m.teamB===t.id)).length;
+    const scored=ms.reduce((s,m)=>s+(m.teamA===t.id?m.scoreA:m.scoreB),0);
+    const conc=ms.reduce((s,m)=>s+(m.teamA===t.id?m.scoreB:m.scoreA),0);
+    const live=S.matches.find(m=>(m.teamA===t.id||m.teamB===t.id)&&m.status==='live');
+    return{team:t,wins,played:ms.length,scored,conc,diff:scored-conc,live};
+  });
+  stats.sort((a,b)=>b.wins-a.wins||b.diff-a.diff||b.scored-a.scored);
+  let html=`<div class="section-head">Live Standings</div>
+    <div class="card" style="padding:10px 12px;margin-bottom:12px;">
+      <div class="info-row"><span class="lbl">Format</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">${S.format?.points}pts · DE</span></div>
+      <div class="info-row"><span class="lbl">Active round</span><span style="color:var(--blue2);font-family:'DM Mono',monospace;">${S.bracket.find(b=>b.matchIds.some(mid=>S.matches.find(m=>m.id===mid&&(m.status==='live'||m.status==='pending'))))?.label||'—'}</span></div>
+    </div>`;
+  const myTeamId = myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId))?.id : null;
+  stats.forEach((s,i)=>{
+    const isMe = s.team.id === myTeamId;
+    html+=`<div class="standings-row" style="${isMe?'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.25);border-radius:8px;':''}">
+      <span class="st-rank ${i<2?'top':''}">${i+1}</span>
+      <div style="flex:1"><div style="font-size:13px;font-weight:500;${isMe?'color:var(--gold);':''}">${s.team.name}${isMe?' ★':''}</div>
+        ${s.live?`<div style="font-size:10px;color:var(--gold);">● LIVE Piste ${s.live.piste}</div>`:''}
+      </div>
+      <div class="st-stats">
+        <span><span class="val">${s.wins}</span><span class="lbl">W</span></span>
+        <span><span class="val">${s.played}</span><span class="lbl">P</span></span>
+        <span><span class="val" style="color:${s.diff>=0?'#2ecc71':'#e74c3c'}">${s.diff>0?'+':''}${s.diff}</span><span class="lbl">±</span></span>
+      </div>
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+// ════════════════════════════════════════════════
+// NAV
+// ════════════════════════════════════════════════
+function showTab(tab) {
+  S.currentTab=tab;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if (tab==='scoring') {
+    document.getElementById('screen-scoring').classList.add('active');
+    document.getElementById('bottomNav').style.display='none';
+    renderScoring();
+  } else {
+    document.getElementById('bottomNav').style.display='flex';
+    document.getElementById('screen-'+tab).classList.add('active');
+    document.getElementById('nav-'+tab)?.classList.add('active');
+    if(tab==='matches') renderMatches();
+    else if(tab==='bracket') renderBracket();
+    else if(tab==='standings') renderStandings();
+  }
+  document.getElementById('mainScroll').scrollTop=0;
+}
+
+function refreshCurrentTab() {
+  const t=S.currentTab;
+  if(t==='matches') renderMatches();
+  else if(t==='bracket') renderBracket();
+  else if(t==='standings') renderStandings();
+  else if(t==='scoring') renderScoring();
+  else if(t==='setup') { renderFencers(); renderTeamsPreview(); }
+}
+
+// ════════════════════════════════════════════════
+// MODAL HELPERS
+// ════════════════════════════════════════════════
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(el=>{
+  el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});
+});
+
+// ════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════
+let toastT;
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.remove('hidden');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.add('hidden'),2600);
+}
+
+// ════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+function emptyState(icon,txt){return `<div class="empty-state"><div class="empty-icon">${icon}</div><div class="empty-text">${txt}</div></div>`;}
+
+// ── INIT ──
+// Firebase subscription handles registry loading
+renderEventInfo();
+renderFencers();
+</script>
+</body>
+</html>
