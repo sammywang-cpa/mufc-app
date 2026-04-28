@@ -84,10 +84,11 @@ onValue(ref(db, REGISTRY_KEY), snap => {
   S.compRegistry = Array.isArray(data) ? data : Object.values(data);
   // Ensure fencers from registry are in local fencer list
   S.compRegistry.forEach(r => {
-    if (!S.fencers.find(f => f.name === r.name)) {
+    // Guard: check by both id and name to prevent duplicates
+    if (!S.fencers.find(f => f.id === r.id || f.name.toLowerCase() === r.name.toLowerCase())) {
       S.fencers.push({ id: r.id, name: r.name, level: r.level, bailed: false });
-      if (r.id >= window._fId) window._fId = r.id + 1;
     }
+    if (r.id >= window._fId) window._fId = r.id + 1;
   });
   if (typeof window.fbOnRemoteUpdate === 'function') window.fbOnRemoteUpdate();
 });
@@ -346,8 +347,19 @@ select option{background:var(--navy2);}
         <div class="committee-strip">🛡 Committee mode active — full override enabled</div>
       </div>
 
+      <div id="setupToolsStrip" style="display:none;margin-bottom:12px;">
+        <div style="display:flex;gap:7px;">
+          <button class="btn btn-ghost btn-sm" style="flex:1;border-color:rgba(142,68,173,.4);color:#c39bd3;" onclick="openPasscodeModal()">🛡 Change PINs</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;border-color:rgba(192,57,43,.4);color:#e74c3c;" onclick="clearAllRegistry()">🗑 Clear PINs</button>
+        </div>
+      </div>
+
       <div class="section-head">Event Info</div>
       <div id="eventInfoCard"></div>
+
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="openModal('manualModal')">📖 User Manual</button>
+      </div>
 
       <div class="section-head">Register Fencers</div>
       <div class="card">
@@ -406,14 +418,12 @@ select option{background:var(--navy2);}
 <div class="modal-overlay" id="roleModal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title">Who are you?</div>
+    <div class="modal-title">Select role</div>
+    <p class="text-muted" style="margin-bottom:12px;font-size:12px;">No role? Just close this — you'll have spectator view by default.</p>
     <div style="display:flex;flex-direction:column;gap:8px;">
       <button class="btn btn-primary btn-block btn-lg" onclick="openCompetitorFlow()">🤺 Competitor</button>
       <button class="btn btn-gold btn-block btn-lg" onclick="promptPin('referee')">⚖ Referee <span style="font-size:11px;opacity:.7;">— PIN required</span></button>
       <button class="btn btn-purple btn-block btn-lg" onclick="promptPin('committee')">🛡 Committee <span style="font-size:11px;opacity:.7;">— PIN required</span></button>
-      <div style="border-top:1px solid var(--border);padding-top:8px;">
-        <button class="btn btn-ghost btn-block" onclick="setRole('spectator')">👁 Spectator — view only</button>
-      </div>
     </div>
   </div>
 </div>
@@ -602,6 +612,117 @@ select option{background:var(--navy2);}
   </div>
 </div>
 
+<!-- TIMER EDIT (referee/committee) -->
+<div class="modal-overlay" id="timerEditModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Set Timer</div>
+    <p class="text-muted" style="margin-bottom:14px;">Manually set the remaining time for this bout (1–5 minutes).</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;" id="timerPresets"></div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Or enter seconds manually</label>
+      <input type="number" id="timerEditSecs" min="0" max="300" style="font-size:20px;text-align:center;padding:10px;">
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('timerEditModal')">Cancel</button>
+      <button class="btn btn-primary btn-block" onclick="saveTimerEdit()">Set timer</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER MANUAL -->
+<div class="modal-overlay" id="manualModal">
+  <div class="modal" style="max-height:92vh;">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📖 User Manual</div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--gold);margin-bottom:6px;">COMPETITION FORMAT</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+        Teams relay event — Foil. Two teams fence in relay. Fencers rotate each bout. First team to reach the match target wins.
+        <br><br>
+        <span style="color:var(--white);font-weight:500;">30 pts</span> (5+ teams) — 6 bouts &nbsp;|&nbsp; <span style="color:var(--white);font-weight:500;">45 pts</span> (≤4 teams) — 9 bouts
+        <br><br>
+        Each bout has a <span style="color:var(--white);font-weight:500;">5-point target milestone</span>. A bout ends when either the running total hits that milestone <span style="color:var(--white);font-weight:500;">or 3 minutes passes</span> — whichever comes first. Scores carry over into the next bout.
+      </div>
+
+      <div style="margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;">
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 1</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 5 pts</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 2</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 10 pts</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 3</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 15 pts</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 4</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 20 pts</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 5</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 25 pts</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 6</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 30 pts</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.5;"><span style="color:var(--muted);">Bout 7</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 35 pts</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.5;"><span style="color:var(--muted);">Bout 8</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 40 pts</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.5;"><span style="color:var(--muted);">Bout 9</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 45 pts</span></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Bouts 7–9 apply to the 45-point format only.</div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:10px 0;"></div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--gold);margin-bottom:6px;">TEAM GENERATION</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+        <span style="color:#2ecc71;">Beginner = 1</span> &nbsp;·&nbsp; <span style="color:var(--blue2);">Novice = 2</span> &nbsp;·&nbsp; <span style="color:var(--gold);">Int/Advanced = 3</span><br>
+        Teams are balanced by total worth. Each team aims for at least one Int/Adv and one Beginner/Novice. 3–4 fencers per team, no one left out. First-round bracket seeded by closest worth.
+      </div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:10px 0;"></div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">👁 SPECTATOR</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;">Default if no role is set. View all matches, bracket, and standings. Cannot score, register, or edit anything.</div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:10px 0;"></div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--blue2);margin-bottom:6px;">🤺 COMPETITOR</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+        Register once with name, level, and a 4-digit PIN. Sign in from any device.<br>
+        • Edit your own team name<br>
+        • View all matches, bracket, and standings<br>
+        • Your bouts are highlighted ★ in gold<br>
+        • Tap any live or completed match to view bout details
+      </div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:10px 0;"></div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--gold);margin-bottom:6px;">⚖ REFEREE — PIN required</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+        • Score bouts — add or undo points<br>
+        • Issue / undo yellow and red cards (🟥 = +1 to opponent)<br>
+        • Start, pause, reset, or manually set the bout timer<br>
+        • Swap fencers within the bout order<br>
+        • Edit scores on any completed bout<br>
+        • End bouts and confirm or dispute match results
+      </div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:10px 0;"></div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--purple2);margin-bottom:6px;">🛡 COMMITTEE — PIN required</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+        Full override — all referee functions plus:<br>
+        • Generate teams and start the competition<br>
+        • Edit event info (date, venue, time)<br>
+        • Remove any fencer from the register<br>
+        • Edit bout scores even after a winner is declared<br>
+        • Change referee and committee PINs<br>
+        • Clear all competitor PINs
+      </div>
+    </div>
+
+    <button class="btn btn-ghost btn-block" onclick="closeModal('manualModal')">Close</button>
+  </div>
+</div>
+
 <div class="toast hidden" id="toast"></div>
 
 <script>
@@ -781,11 +902,13 @@ function submitCompRegister() {
   // Use a single id for both registry entry and fencer object
   const newId = fId++;
   S.compRegistry.push({ id: newId, name, level, pin });
-  saveRegistry();
-
-  S.fencers.push({ id: newId, name, level, bailed: false });
+  // Only add fencer locally if not already present (Firebase sync may have added it)
+  if (!S.fencers.find(f => f.id === newId)) {
+    S.fencers.push({ id: newId, name, level, bailed: false });
+  }
   myFencerId = newId;
-  pushRegistry(); pushState();
+  pushRegistry();
+  pushState();
 
   closeModal('compRegModal');
   showToast(`Registered! Now sign in, ${name} 🤺`);
@@ -845,20 +968,6 @@ function submitPin() {
   }
 }
 
-function openPasscodeModal() {
-  if (S.role !== 'committee') { showToast('Committee access only'); return; }
-  ['newRef0','newRef1','newRef2','newRef3','newCom0','newCom1','newCom2','newCom3'].forEach(id => document.getElementById(id).value = '');
-  openModal('passcodeModal');
-}
-
-function savePasscodes() {
-  const ref = [0,1,2,3].map(i => document.getElementById('newRef'+i).value).join('');
-  const com = [0,1,2,3].map(i => document.getElementById('newCom'+i).value).join('');
-  if (ref.length === 4 && /^\d{4}$/.test(ref)) S.pins.referee = ref;
-  if (com.length === 4 && /^\d{4}$/.test(com)) S.pins.committee = com;
-  closeModal('passcodeModal');
-  showToast('Passcodes updated ✓');
-}
 
 // ════════════════════════════════════════════════
 // ROLE
@@ -873,6 +982,8 @@ function setRole(role) {
   document.getElementById('roleText').textContent = labels[role];
   document.getElementById('roleBtn').className = 'role-badge ' + role;
   document.getElementById('committeeStrip').style.display = role === 'committee' ? 'block' : 'none';
+  const st = document.getElementById('setupToolsStrip');
+  if (st) st.style.display = role === 'committee' ? 'block' : 'none';
   if (role !== 'competitor') myFencerId = null;
   closeModal('roleModal');
   showToast(`Role: ${labels[role]}`);
@@ -1356,9 +1467,9 @@ function renderScoring() {
 
   // Swap button: referee and committee can swap on pending/active bouts
   const swapBtnA = isPriv && m.status!=='complete'
-    ? `<button class="bail-btn" style="background:rgba(46,125,212,.15);border-color:rgba(46,125,212,.5);color:var(--blue2);" onclick="openSwap(${m.id},${boutIdx},'A')">⇄ Swap</button>` : '';
+    ? `<span style="font-size:11px;color:var(--blue2);cursor:pointer;text-decoration:underline;" onclick="openSwap(${m.id},${boutIdx},'A')">⇄ swap</span>` : '';
   const swapBtnB = isPriv && m.status!=='complete'
-    ? `<button class="bail-btn" style="background:rgba(46,125,212,.15);border-color:rgba(46,125,212,.5);color:var(--blue2);" onclick="openSwap(${m.id},${boutIdx},'B')">⇄ Swap</button>` : '';
+    ? `<span style="font-size:11px;color:var(--blue2);cursor:pointer;text-decoration:underline;" onclick="openSwap(${m.id},${boutIdx},'B')">⇄ swap</span>` : '';
   const bailBtnA = '';
   const bailBtnB = '';
 
@@ -1393,7 +1504,8 @@ function renderScoring() {
           const boutCards = (b.cards||[]).map(c=>
             `<span title="${c.type} card">${c.type==='yellow'?'🟨':'🟥'}${c.side}</span>`
           ).join(' ');
-          return `<div class="bout-row" style="${isMine?'background:rgba(201,162,39,.08);border-radius:6px;padding:5px 6px;border:1px solid rgba(201,162,39,.2);margin-bottom:3px;':''}">
+          const canEditComplete = S.role==='committee';
+          return `<div class="bout-row" style="${isMine?'background:rgba(201,162,39,.08);border-radius:6px;padding:5px 6px;border:1px solid rgba(201,162,39,.2);margin-bottom:3px;':''}${canEditComplete?'cursor:pointer;':''}" onclick="${canEditComplete?'openBoutEdit('+m.id+','+bi+')':''}">
             <span class="bout-fencer active" style="${isMine&&b.fencerA===myName?'color:var(--gold);font-weight:600;':''}">${b.fencerA}${isMine&&b.fencerA===myName?' ★':''}</span>
             <span class="bout-pts a">${b.ptsA}</span>
             <span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;">B${b.boutNum}${boutCards?'<br>'+boutCards:''}</span>
@@ -1404,7 +1516,7 @@ function renderScoring() {
         }).join('');
       })()}
 
-      <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="showTab('matches')">← Back to Matches</button>
+      ${S.role==='committee'?`<div style="margin:10px 0 4px;"><div class="section-head" style="margin-top:4px;">Edit bout scores <span style="font-size:10px;font-weight:400;color:var(--muted);">(committee — tap any bout)</span></div></div>`:''}      <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="showTab('matches')">← Back to Matches</button>
     `:`
       <div class="bout-info-box">
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Bout ${ab.boutNum} / ${m.bouts.length} &nbsp;·&nbsp; <span style="color:var(--gold);">target: ${ab.boutNum*5} pts total</span></div>
@@ -1432,7 +1544,7 @@ function renderScoring() {
         </div>
       </div>
 
-      <div class="timer-display ${tc}">${mins}:${secs}</div>
+      <div class="timer-display ${tc}" ${isPriv?`onclick="openTimerEdit(${m.id},${boutIdx})" title="Tap to adjust" style="cursor:pointer;"`:''}>${mins}:${secs}</div>
       ${isPriv?`
       <div style="display:flex;gap:7px;margin-bottom:8px;">
         <button class="btn btn-ghost btn-block btn-sm" onclick="toggleTimer(${m.id},${boutIdx})">${t.running?'⏸ Pause':'▶ Start timer'}</button>
@@ -1470,7 +1582,6 @@ function renderScoring() {
 
       <div style="display:flex;gap:7px;margin-bottom:12px;">
         <button class="btn btn-ghost btn-sm" onclick="promptNextBout(${m.id},'manual')" style="flex:1">⏹ End bout</button>
-        ${S.role==='committee'?`<button class="btn btn-ghost btn-sm" onclick="openPasscodeModal()" style="flex-shrink:0">🛡 PINs</button>`:''}
       </div>
       `:`
       <div style="background:var(--navy2);border-radius:var(--r);padding:10px 12px;text-align:center;margin:8px 0 12px;border:1px solid var(--border);">
@@ -1848,6 +1959,33 @@ function confirmSwap() {
   showToast(`Swapped: ${currentName} → ${newName}`);
 }
 
+
+// ── Manual timer edit (referee / committee) ─────────────────
+let timerEditContext = null;
+function openTimerEdit(matchId, boutIdx) {
+  if (S.role!=='referee'&&S.role!=='committee') return;
+  timerEditContext = { matchId, boutIdx };
+  const k = matchId+'_'+boutIdx;
+  const cur = timers[k]?.seconds ?? 180;
+  stopTimer(k);
+  document.getElementById('timerEditSecs').value = cur;
+  const presets = document.getElementById('timerPresets');
+  presets.innerHTML = [1,2,3,4,5].map(m =>
+    '<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'timerEditSecs\').value='+"m*60"+'">' + 'm' + ' min</button>'
+  ).join('');
+  openModal('timerEditModal');
+}
+function saveTimerEdit() {
+  if (!timerEditContext) return;
+  const {matchId, boutIdx} = timerEditContext;
+  const k = matchId+'_'+boutIdx;
+  const v = Math.max(0, Math.min(300, parseInt(document.getElementById('timerEditSecs').value) || 0));
+  if (!timers[k]) timers[k] = {seconds:v, running:false};
+  else { timers[k].seconds = v; timers[k].running = false; }
+  timerEditContext = null;
+  closeModal('timerEditModal');
+  renderScoring();
+}
 
 function toggleTimer(matchId, boutIdx) {
   const k = matchId+'_'+boutIdx;
