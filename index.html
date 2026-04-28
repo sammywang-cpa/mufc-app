@@ -424,6 +424,9 @@ select option{background:var(--navy2);}
       <button class="btn btn-primary btn-block btn-lg" onclick="openCompetitorFlow()">🤺 Competitor</button>
       <button class="btn btn-gold btn-block btn-lg" onclick="promptPin('referee')">⚖ Referee <span style="font-size:11px;opacity:.7;">— PIN required</span></button>
       <button class="btn btn-purple btn-block btn-lg" onclick="promptPin('committee')">🛡 Committee <span style="font-size:11px;opacity:.7;">— PIN required</span></button>
+      <div id="logoutRow" style="display:none;border-top:1px solid var(--border);padding-top:8px;">
+        <button class="btn btn-ghost btn-block" onclick="logOut()">↩ Log out — back to spectator view</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1057,7 +1060,12 @@ function submitPin() {
 // ════════════════════════════════════════════════
 // ROLE
 // ════════════════════════════════════════════════
-function openRoleModal() { openModal('roleModal'); }
+function openRoleModal() {
+  // Show logout row only if already signed in as a role
+  const lr = document.getElementById('logoutRow');
+  if (lr) lr.style.display = S.role ? 'block' : 'none';
+  openModal('roleModal');
+}
 
 function setRole(role) {
   S.role = role;
@@ -1075,6 +1083,24 @@ function setRole(role) {
   renderEventInfo();
   renderFencers();
   renderTeamsPreview();
+  if (S.currentTab !== 'setup') refreshCurrentTab();
+}
+
+function logOut() {
+  S.role = null;
+  myFencerId = null;
+  document.getElementById('roleIcon').textContent = '👤';
+  document.getElementById('roleText').textContent = 'Set role';
+  document.getElementById('roleBtn').className = 'role-badge';
+  document.getElementById('committeeStrip').style.display = 'none';
+  const st = document.getElementById('setupToolsStrip');
+  if (st) st.style.display = 'none';
+  closeModal('roleModal');
+  showToast('Logged out — spectator view');
+  renderEventInfo();
+  renderFencers();
+  renderTeamsPreview();
+  updateGenCard();
   if (S.currentTab !== 'setup') refreshCurrentTab();
 }
 
