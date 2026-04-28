@@ -2153,6 +2153,11 @@ function renderStandings() {
     <div class="card" style="padding:10px 12px;margin-bottom:12px;">
       <div class="info-row"><span class="lbl">Format</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">${S.format?.points}pts · DE</span></div>
       <div class="info-row"><span class="lbl">Active round</span><span style="color:var(--blue2);font-family:'DM Mono',monospace;">${S.bracket.find(b=>b.matchIds.some(mid=>S.matches.find(m=>m.id===mid&&(m.status==='live'||m.status==='pending'))))?.label||'—'}</span></div>
+      <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;gap:14px;font-size:11px;color:var(--muted);">
+        <span><span style="color:var(--white);font-weight:500;">W</span> — Wins</span>
+        <span><span style="color:var(--white);font-weight:500;">P</span> — Matches played</span>
+        <span><span style="color:var(--white);font-weight:500;">±</span> — Point differential (scored − conceded)</span>
+      </div>
     </div>`;
   const myTeamId = myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId))?.id : null;
   stats.forEach((s,i)=>{
