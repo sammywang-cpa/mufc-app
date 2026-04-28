@@ -350,7 +350,7 @@ select option{background:var(--navy2);}
       <div id="setupToolsStrip" style="display:none;margin-bottom:12px;">
         <div style="display:flex;gap:7px;">
           <button class="btn btn-ghost btn-sm" style="flex:1;border-color:rgba(142,68,173,.4);color:#c39bd3;" onclick="openPasscodeModal()">🛡 Change PINs</button>
-          <button class="btn btn-ghost btn-sm" style="flex:1;border-color:rgba(192,57,43,.4);color:#e74c3c;" onclick="clearAllRegistry()">🗑 Clear PINs</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;border-color:rgba(46,125,212,.4);color:var(--blue2);" onclick="openManageCompetitors()">👤 Manage Competitors</button>
         </div>
       </div>
 
@@ -551,10 +551,6 @@ select option{background:var(--navy2);}
       <button class="btn btn-ghost btn-block" onclick="closeModal('passcodeModal')">Cancel</button>
       <button class="btn btn-purple btn-block" onclick="savePasscodes()">Save PINs</button>
     </div>
-    <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;">
-      <p class="text-muted" style="font-size:11px;margin-bottom:8px;">Danger zone — clears all competitor PINs from this device. They will need to re-register.</p>
-      <button class="btn btn-danger btn-block btn-sm" onclick="clearAllRegistry()">🗑 Clear all competitor PINs</button>
-    </div>
   </div>
 </div>
 
@@ -617,11 +613,10 @@ select option{background:var(--navy2);}
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">Set Timer</div>
-    <p class="text-muted" style="margin-bottom:14px;">Manually set the remaining time for this bout (1–5 minutes).</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;" id="timerPresets"></div>
+    <p class="text-muted" style="margin-bottom:16px;">Enter the remaining seconds for this bout.</p>
     <div class="form-group" style="margin-bottom:16px;">
-      <label>Or enter seconds manually</label>
-      <input type="number" id="timerEditSecs" min="0" max="300" style="font-size:20px;text-align:center;padding:10px;">
+      <label>Seconds remaining</label>
+      <input type="number" id="timerEditSecs" min="0" max="600" style="font-size:28px;text-align:center;padding:12px;" placeholder="180">
     </div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-ghost btn-block" onclick="closeModal('timerEditModal')">Cancel</button>
@@ -641,7 +636,7 @@ select option{background:var(--navy2);}
       <div style="font-size:13px;color:var(--muted);line-height:1.6;">
         Teams relay event — Foil. Two teams fence in relay. Fencers rotate each bout. First team to reach the match target wins.
         <br><br>
-        <span style="color:var(--white);font-weight:500;">30 pts</span> (5+ teams) — 6 bouts &nbsp;|&nbsp; <span style="color:var(--white);font-weight:500;">45 pts</span> (≤4 teams) — 9 bouts
+        <span style="color:var(--white);font-weight:500;">30 pts</span> (6+ teams) — 6 bouts &nbsp;|&nbsp; <span style="color:var(--white);font-weight:500;">45 pts</span> (≤4 teams) — 9 bouts
         <br><br>
         Each bout has a <span style="color:var(--white);font-weight:500;">5-point target milestone</span>. A bout ends when either the running total hits that milestone <span style="color:var(--white);font-weight:500;">or 3 minutes passes</span> — whichever comes first. Scores carry over into the next bout.
       </div>
@@ -709,17 +704,53 @@ select option{background:var(--navy2);}
     <div style="margin-bottom:16px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--purple2);margin-bottom:6px;">🛡 COMMITTEE — PIN required</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.6;">
-        Full override — all referee functions plus:<br>
+        Full override — all referee functions, plus:<br>
         • Generate teams and start the competition<br>
         • Edit event info (date, venue, time)<br>
         • Remove any fencer from the register<br>
         • Edit bout scores even after a winner is declared<br>
-        • Change referee and committee PINs<br>
-        • Clear all competitor PINs
+        • Change individual competitor PINs<br>
+        • Clear all competitor data<br>
+        • Change referee and committee PINs
       </div>
     </div>
 
     <button class="btn btn-ghost btn-block" onclick="closeModal('manualModal')">Close</button>
+  </div>
+</div>
+
+<!-- MANAGE COMPETITORS (committee) -->
+<div class="modal-overlay" id="manageCompModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Manage Competitors</div>
+
+    <div class="section-head" style="margin-top:0;">Change individual PIN</div>
+    <div class="form-group">
+      <label>Select competitor</label>
+      <select id="compManageSel"></select>
+    </div>
+    <div class="form-group">
+      <label>New 4-digit PIN</label>
+      <div class="pin-row">
+        <input class="pin-digit" id="newCompPin0" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('newCompPin',0)" onkeydown="pinKey3(event,'newCompPin',0)">
+        <input class="pin-digit" id="newCompPin1" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('newCompPin',1)" onkeydown="pinKey3(event,'newCompPin',1)">
+        <input class="pin-digit" id="newCompPin2" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('newCompPin',2)" onkeydown="pinKey3(event,'newCompPin',2)">
+        <input class="pin-digit" id="newCompPin3" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('newCompPin',3)" onkeydown="pinKey3(event,'newCompPin',3)">
+      </div>
+    </div>
+    <div id="compPinError" style="color:#e74c3c;font-size:12px;text-align:center;min-height:16px;margin-bottom:8px;"></div>
+    <button class="btn btn-primary btn-block" onclick="saveCompPin()" style="margin-bottom:16px;">Update PIN</button>
+
+    <div style="border-top:1px solid var(--border);padding-top:14px;">
+      <div class="section-head" style="margin-top:0;">Danger zone</div>
+      <p class="text-muted" style="font-size:12px;margin-bottom:10px;">This cannot be undone.</p>
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <button class="btn btn-danger btn-block btn-sm" onclick="clearAllCompData()">⚠ Clear ALL competitor data (names + PINs)</button>
+      </div>
+    </div>
+
+    <button class="btn btn-ghost btn-block" style="margin-top:14px;" onclick="closeModal('manageCompModal')">Close</button>
   </div>
 </div>
 
@@ -788,13 +819,61 @@ function pushRegistry() {
 function saveRegistry() { pushRegistry(); }
 function loadRegistry() { /* handled by Firebase onValue subscription */ }
 // Committee utility: wipe the entire registry
-function clearAllRegistry() {
+// Manage competitors modal
+function openManageCompetitors() {
   if (S.role !== 'committee') { showToast('Committee only'); return; }
-  if (!confirm('Clear ALL registered competitor PINs? They will need to re-register.')) return;
+  const sel = document.getElementById('compManageSel');
+  if (S.compRegistry.length === 0) { showToast('No registered competitors yet'); return; }
+  sel.innerHTML = S.compRegistry.map(r =>
+    `<option value="${r.id}">${r.name} (${r.level==='intermediate'?'Int/Adv':r.level==='novice'?'Novice':'Beginner'})</option>`
+  ).join('');
+  ['newCompPin0','newCompPin1','newCompPin2','newCompPin3'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('compPinError').textContent = '';
+  openModal('manageCompModal');
+}
+
+function saveCompPin() {
+  const selId = parseInt(document.getElementById('compManageSel').value);
+  const pin = [0,1,2,3].map(i => document.getElementById('newCompPin'+i).value).join('');
+  const errEl = document.getElementById('compPinError');
+  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) { errEl.textContent = 'Enter a valid 4-digit PIN'; return; }
+  const reg = S.compRegistry.find(r => r.id === selId);
+  if (!reg) { errEl.textContent = 'Select a competitor'; return; }
+  reg.pin = pin;
+  pushRegistry();
+  errEl.style.color = '#2ecc71';
+  errEl.textContent = `PIN updated for ${reg.name} ✓`;
+  ['newCompPin0','newCompPin1','newCompPin2','newCompPin3'].forEach(id => document.getElementById(id).value = '');
+}
+
+function clearAllPins() {
+  if (S.role !== 'committee') return;
+  if (!confirm('Clear ALL competitor PINs? They will need to set a new PIN next time they sign in.')) return;
+  S.compRegistry.forEach(r => { r.pin = ''; });
+  pushRegistry();
+  closeModal('manageCompModal');
+  showToast('All competitor PINs cleared ✓');
+}
+
+function clearAllCompData() {
+  if (S.role !== 'committee') return;
+  if (!confirm('Delete ALL competitor registrations? This removes all names and PINs permanently. Fencers will need to re-register.')) return;
+  // Collect ids of all registry entries so we can remove them from fencers too
+  const registeredIds = new Set(S.compRegistry.map(r => r.id));
+  const registeredNames = new Set(S.compRegistry.map(r => r.name.toLowerCase()));
+  // Remove from fencers list anyone who registered via the competitor flow
+  S.fencers = S.fencers.filter(f => !registeredIds.has(f.id) && !registeredNames.has(f.name.toLowerCase()));
   S.compRegistry = [];
   pushRegistry();
-  showToast('Registry cleared ✓');
+  pushState();
+  closeModal('manageCompModal');
+  renderFencers();
+  updateGenCard();
+  showToast('All competitor data cleared ✓');
 }
+
+// Legacy alias kept for any residual calls
+function clearAllRegistry() { clearAllPins(); }
 
 
 // ════════════════════════════════════════════════
@@ -825,16 +904,22 @@ function pinInput2(prefix, idx) {
   if (el.value.length === 1 && idx < 3) document.getElementById(prefix+(idx+1)).focus();
 }
 // Generic pin handler for register/login pins
+// prefix can end in 'Pin' already (e.g. newCompPin) or not (e.g. reg, login)
 function pinInput3(prefix, idx) {
-  const el = document.getElementById(prefix+'Pin'+idx);
+  // Support both 'regPin0' style (prefix='reg') and 'newCompPin0' style (prefix='newCompPin')
+  const id = prefix.endsWith('Pin') ? prefix+idx : prefix+'Pin'+idx;
+  const el = document.getElementById(id);
   if (el && el.value.length === 1 && idx < 3) {
-    const next = document.getElementById(prefix+'Pin'+(idx+1));
+    const nextId = prefix.endsWith('Pin') ? prefix+(idx+1) : prefix+'Pin'+(idx+1);
+    const next = document.getElementById(nextId);
     if (next) next.focus();
   }
 }
 function pinKey3(e, prefix, idx) {
-  if (e.key === 'Backspace' && !document.getElementById(prefix+'Pin'+idx).value && idx > 0) {
-    const prev = document.getElementById(prefix+'Pin'+(idx-1));
+  const id = prefix.endsWith('Pin') ? prefix+idx : prefix+'Pin'+idx;
+  if (e.key === 'Backspace' && !document.getElementById(id).value && idx > 0) {
+    const prevId = prefix.endsWith('Pin') ? prefix+(idx-1) : prefix+'Pin'+(idx-1);
+    const prev = document.getElementById(prevId);
     if (prev) prev.focus();
   }
 }
@@ -1969,17 +2054,13 @@ function openTimerEdit(matchId, boutIdx) {
   const cur = timers[k]?.seconds ?? 180;
   stopTimer(k);
   document.getElementById('timerEditSecs').value = cur;
-  const presets = document.getElementById('timerPresets');
-  presets.innerHTML = [1,2,3,4,5].map(m =>
-    '<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'timerEditSecs\').value='+"m*60"+'">' + 'm' + ' min</button>'
-  ).join('');
   openModal('timerEditModal');
 }
 function saveTimerEdit() {
   if (!timerEditContext) return;
   const {matchId, boutIdx} = timerEditContext;
   const k = matchId+'_'+boutIdx;
-  const v = Math.max(0, Math.min(300, parseInt(document.getElementById('timerEditSecs').value) || 0));
+  const v = Math.max(0, Math.min(600, parseInt(document.getElementById('timerEditSecs').value) || 0));
   if (!timers[k]) timers[k] = {seconds:v, running:false};
   else { timers[k].seconds = v; timers[k].running = false; }
   timerEditContext = null;
