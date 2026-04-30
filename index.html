@@ -820,10 +820,16 @@ window.fbOnRemoteUpdate = function() {
   renderTeamsPreview();
   updateGenCard();
   if (S.started) {
-    if (S.currentTab === 'matches')   renderMatches();
+    if (S.currentTab === 'matches')        renderMatches();
     else if (S.currentTab === 'bracket')   renderBracket();
     else if (S.currentTab === 'standings') renderStandings();
-    else if (S.currentTab === 'scoring' && S.activeMatchId) renderScoring();
+    else if (S.currentTab === 'scoring' && S.activeMatchId) {
+      // Only re-render scoring if the match being viewed actually changed
+      // Don't override a completed/pending match view just because another match updated
+      const viewedMatch = S.matches.find(x => x.id === S.activeMatchId);
+      if (viewedMatch && viewedMatch.status === 'live') renderScoring();
+      // For complete/pending/waiting matches — don't auto-refresh; user is reading static results
+    }
     else { renderMatches(); }
   }
 };
@@ -1570,16 +1576,19 @@ function renderMatchCard(m, isPriv) {
 // SCORING
 // ════════════════════════════════════════════════
 function openScoring(matchId) {
-  S.activeMatchId = matchId;
   const m = S.matches.find(x=>x.id===matchId);
   if (!m) return;
   const isPriv = S.role==='referee'||S.role==='committee';
+  // Block waiting (TBD) slots entirely — nothing to show
+  if (m.status==='waiting') {
+    showToast('Match not yet scheduled — waiting for bracket to advance');
+    return;
+  }
+  S.activeMatchId = matchId;
   // Only referee/committee can activate a pending match to start scoring
   if (m.status==='pending' && isPriv) {
     m.status='live'; if(!m.bouts?.length) initBouts(m);
   }
-  // Block waiting (TBD bracket) slots for non-priv
-  if (m.status==='waiting' && !isPriv) { showToast('Match not yet scheduled'); return; }
   showTab('scoring');
 }
 
@@ -2254,12 +2263,12 @@ function renderBracket() {
       const sc=m.status==='live'?'live':m.status==='complete'?'complete':'';
       const isMyMatch = myTeam && (myTeam.id===m.teamA || myTeam.id===m.teamB);
       html+=`<div class="bracket-match ${sc}" style="${isMyMatch?'border-color:var(--gold);':''}" >
-        <div class="bracket-team-row ${m.status==='complete'&&m.winner==='A'?'winner':''}" onclick="${(isPriv||(S.role==='competitor'&&m.status!=='waiting'))?'openScoring('+m.id+')':''}">
+        <div class="bracket-team-row ${m.status==='complete'&&m.winner==='A'?'winner':''}" onclick="${m.status!=='waiting'?'openScoring('+m.id+')':''}">
           <span class="seed">A</span>
           <span class="bname" style="${myTeam&&myTeam.id===m.teamA?'color:var(--gold);font-weight:600;':''}">${nA}${myTeam&&myTeam.id===m.teamA?' ★':''}</span>
           <span class="bscore">${m.scoreA}</span>
         </div>
-        <div class="bracket-team-row ${m.status==='complete'&&m.winner==='B'?'winner':''}" onclick="${(isPriv||(S.role==='competitor'&&m.status!=='waiting'))?'openScoring('+m.id+')':''}">
+        <div class="bracket-team-row ${m.status==='complete'&&m.winner==='B'?'winner':''}" onclick="${m.status!=='waiting'?'openScoring('+m.id+')':''}">
           <span class="seed">B</span>
           <span class="bname" style="${myTeam&&myTeam.id===m.teamB?'color:var(--gold);font-weight:600;':''}">${nB}${myTeam&&myTeam.id===m.teamB?' ★':''}</span>
           <span class="bscore">${m.scoreB}</span>
