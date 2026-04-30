@@ -722,6 +722,27 @@ select option{background:var(--navy2);}
   </div>
 </div>
 
+<!-- BRACKET REASSIGN (committee) -->
+<div class="modal-overlay" id="bracketReassignModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Reassign Bracket Slot</div>
+    <p class="text-muted" style="margin-bottom:14px;" id="bracketReassignSub"></p>
+    <div class="form-group">
+      <label>Team A slot</label>
+      <select id="bracketReassignA"></select>
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Team B slot</label>
+      <select id="bracketReassignB"></select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('bracketReassignModal')">Cancel</button>
+      <button class="btn btn-purple btn-block" onclick="confirmBracketReassign()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- MOVE FENCER (committee) -->
 <div class="modal-overlay" id="moveFencerModal">
   <div class="modal">
@@ -1849,7 +1870,59 @@ function removeCard(matchId) {
   renderScoring(); renderMatches();
 }
 
-// ── Move fencer between teams (committee) ────────────────────
+// ── Bracket slot reassignment (committee) ────────────────────
+let bracketReassignContext = null;
+function openBracketReassign(matchId) {
+  if (S.role !== 'committee') return;
+  const m = S.matches.find(x => x.id === matchId);
+  if (!m || (m.status !== 'pending' && m.status !== 'waiting')) return;
+
+  bracketReassignContext = matchId;
+  const tA = S.teams.find(t => t.id === m.teamA);
+  const tB = S.teams.find(t => t.id === m.teamB);
+  document.getElementById('bracketReassignSub').textContent =
+    `Match on Piste ${m.piste} — ${m.target} pts`;
+
+  // Options: all teams + TBD option
+  const opts = `<option value="TBD">TBD (not yet decided)</option>` +
+    S.teams.map(t => `<option value="${t.id}">${t.name} (⚖ ${teamWorth(t)})</option>`).join('');
+
+  const selA = document.getElementById('bracketReassignA');
+  const selB = document.getElementById('bracketReassignB');
+  selA.innerHTML = opts;
+  selB.innerHTML = opts;
+
+  // Set current values
+  selA.value = tA ? m.teamA : 'TBD';
+  selB.value = tB ? m.teamB : 'TBD';
+
+  openModal('bracketReassignModal');
+}
+
+function confirmBracketReassign() {
+  if (!bracketReassignContext) return;
+  const m = S.matches.find(x => x.id === bracketReassignContext);
+  if (!m) return;
+  const selA = document.getElementById('bracketReassignA').value;
+  const selB = document.getElementById('bracketReassignB').value;
+  m.teamA = selA === 'TBD' ? ('TBD_'+m.id) : parseInt(selA);
+  m.teamB = selB === 'TBD' ? ('TBD_'+m.id+'b') : parseInt(selB);
+  // If both real teams now assigned, set pending and init bouts
+  const tA = S.teams.find(t => t.id === m.teamA);
+  const tB = S.teams.find(t => t.id === m.teamB);
+  if (tA && tB && m.status === 'waiting') {
+    m.status = 'pending';
+    initBouts(m);
+  }
+  bracketReassignContext = null;
+  pushState();
+  closeModal('bracketReassignModal');
+  renderBracket();
+  renderMatches();
+  showToast('Bracket updated ✓');
+}
+
+
 let moveFencerContext = null;
 function openMoveFencer(fencerId, fromTeamId) {
   if (S.role !== 'committee') return;
@@ -2251,7 +2324,7 @@ function renderBracket() {
     const w = S.teams.find(t=>t.id===(finalM.winner==='A'?finalM.teamA:finalM.teamB));
     html = `<div class="champion-banner"><div style="font-size:44px;">🥇</div><div style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:3px;color:var(--gold);margin:4px 0 2px;">Champion</div><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;">${w?.name}</div></div>`;
   }
-  const isPriv = S.role==='referee'||S.role==='committee';
+  const isCom = S.role==='committee';
   const myTeam = myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId)) : null;
   S.bracket.forEach(br=>{
     html+=`<div style="margin-bottom:18px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;">${br.label}</div>`;
@@ -2262,13 +2335,15 @@ function renderBracket() {
       const nB=tB?.name||(m.teamB?.toString().startsWith('TBD')?'TBD':'?');
       const sc=m.status==='live'?'live':m.status==='complete'?'complete':'';
       const isMyMatch = myTeam && (myTeam.id===m.teamA || myTeam.id===m.teamB);
-      html+=`<div class="bracket-match ${sc}" style="${isMyMatch?'border-color:var(--gold);':''}" >
-        <div class="bracket-team-row ${m.status==='complete'&&m.winner==='A'?'winner':''}" onclick="${m.status!=='waiting'?'openScoring('+m.id+')':''}">
+      // Committee reassign button — only for pending/waiting matches (not live/complete)
+      const canReassign = isCom && (m.status==='pending'||m.status==='waiting');
+      html+=`<div class="bracket-match ${sc}" style="${isMyMatch?'border-color:var(--gold);':''}">
+        <div class="bracket-team-row ${m.status==='complete'&&m.winner==='A'?'winner':''}">
           <span class="seed">A</span>
           <span class="bname" style="${myTeam&&myTeam.id===m.teamA?'color:var(--gold);font-weight:600;':''}">${nA}${myTeam&&myTeam.id===m.teamA?' ★':''}</span>
           <span class="bscore">${m.scoreA}</span>
         </div>
-        <div class="bracket-team-row ${m.status==='complete'&&m.winner==='B'?'winner':''}" onclick="${m.status!=='waiting'?'openScoring('+m.id+')':''}">
+        <div class="bracket-team-row ${m.status==='complete'&&m.winner==='B'?'winner':''}">
           <span class="seed">B</span>
           <span class="bname" style="${myTeam&&myTeam.id===m.teamB?'color:var(--gold);font-weight:600;':''}">${nB}${myTeam&&myTeam.id===m.teamB?' ★':''}</span>
           <span class="bscore">${m.scoreB}</span>
@@ -2276,6 +2351,7 @@ function renderBracket() {
         <div class="bracket-match-meta">
           <span>Piste ${m.piste}</span><span>${m.target}pts</span>
           <span class="badge ${m.status==='live'?'badge-gold':m.status==='complete'?'badge-green':'badge-muted'}" style="font-size:9px">${m.status}</span>
+          ${canReassign?`<span style="color:var(--purple2);font-size:10px;cursor:pointer;text-decoration:underline;" onclick="openBracketReassign(${m.id})">✎ reassign</span>`:''}
         </div>
       </div>`;
     });
