@@ -845,11 +845,17 @@ window.fbOnRemoteUpdate = function() {
     else if (S.currentTab === 'bracket')   renderBracket();
     else if (S.currentTab === 'standings') renderStandings();
     else if (S.currentTab === 'scoring' && S.activeMatchId) {
-      // Only re-render scoring if the match being viewed actually changed
-      // Don't override a completed/pending match view just because another match updated
       const viewedMatch = S.matches.find(x => x.id === S.activeMatchId);
-      if (viewedMatch && viewedMatch.status === 'live') renderScoring();
-      // For complete/pending/waiting matches — don't auto-refresh; user is reading static results
+      if (!viewedMatch) return;
+      // Always re-render if the viewed match itself is live (scores are changing)
+      // For complete/pending: only re-render for committee/referee (they may be editing)
+      // For spectator/competitor: don't override — they're reading static results
+      if (viewedMatch.status === 'live') {
+        renderScoring();
+      } else if (S.role === 'committee' || S.role === 'referee') {
+        renderScoring();
+      }
+      // spectator/competitor viewing a complete match: leave their screen alone
     }
     else { renderMatches(); }
   }
