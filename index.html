@@ -844,18 +844,17 @@ window.fbOnRemoteUpdate = function() {
     if (S.currentTab === 'matches')        renderMatches();
     else if (S.currentTab === 'bracket')   renderBracket();
     else if (S.currentTab === 'standings') renderStandings();
-    else if (S.currentTab === 'scoring' && S.activeMatchId) {
+    else if (S.currentTab === 'scoring') {
+      if (!S.activeMatchId) { renderMatches(); return; }
       const viewedMatch = S.matches.find(x => x.id === S.activeMatchId);
-      if (!viewedMatch) return;
-      // Always re-render if the viewed match itself is live (scores are changing)
-      // For complete/pending: only re-render for committee/referee (they may be editing)
-      // For spectator/competitor: don't override — they're reading static results
+      if (!viewedMatch) { renderMatches(); return; }
+      // Live match: always re-render (scores actively changing)
       if (viewedMatch.status === 'live') {
         renderScoring();
-      } else if (S.role === 'committee' || S.role === 'referee') {
-        renderScoring();
       }
-      // spectator/competitor viewing a complete match: leave their screen alone
+      // Completed match: NEVER auto-re-render from remote — user is reading results
+      // They must navigate away and back if they want a refresh
+      // (committee edits are local pushes, not remote — they trigger renderScoring directly)
     }
     else { renderMatches(); }
   }
@@ -1606,7 +1605,7 @@ function openScoring(matchId) {
   const m = S.matches.find(x=>x.id===matchId);
   if (!m) return;
   const isPriv = S.role==='referee'||S.role==='committee';
-  // Block waiting (TBD) slots entirely — nothing to show
+  // Block waiting (TBD) slots entirely
   if (m.status==='waiting') {
     showToast('Match not yet scheduled — waiting for bracket to advance');
     return;
@@ -1615,7 +1614,11 @@ function openScoring(matchId) {
   // Only referee/committee can activate a pending match to start scoring
   if (m.status==='pending' && isPriv) {
     m.status='live'; if(!m.bouts?.length) initBouts(m);
+    pushState();
   }
+  // Tell Firebase module to ignore the next incoming update on this device
+  // so our rendering of this specific match is not immediately overridden
+  if (window.fbSetIgnore) window.fbSetIgnore();
   showTab('scoring');
 }
 
