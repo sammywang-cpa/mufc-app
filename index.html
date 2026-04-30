@@ -722,6 +722,27 @@ select option{background:var(--navy2);}
   </div>
 </div>
 
+<!-- MOVE FENCER (committee) -->
+<div class="modal-overlay" id="moveFencerModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="moveFencerTitle">Move Fencer</div>
+    <p class="text-muted" style="margin-bottom:14px;" id="moveFencerSub"></p>
+    <div class="form-group">
+      <label>Move to team</label>
+      <select id="moveFencerTeamSel"></select>
+    </div>
+    <div id="moveFencerSwapRow" style="display:none;margin-bottom:14px;">
+      <label>Or swap with a fencer from that team</label>
+      <select id="moveFencerSwapSel"></select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('moveFencerModal')">Cancel</button>
+      <button class="btn btn-primary btn-block" onclick="confirmMoveFencer()">Move</button>
+    </div>
+  </div>
+</div>
+
 <!-- MANAGE COMPETITORS (committee) -->
 <div class="modal-overlay" id="manageCompModal">
   <div class="modal">
@@ -786,6 +807,8 @@ let boutEditContext = null;
 
 // Expose to window so Firebase ES module can access
 window._S = S;
+window.timers = timers;
+const swappedSides = {}; // matchId -> bool
 Object.defineProperty(window, '_fId', { get:()=>fId, set:v=>{fId=v;} });
 Object.defineProperty(window, '_tId', { get:()=>tId, set:v=>{tId=v;} });
 Object.defineProperty(window, '_mId', { get:()=>mId, set:v=>{mId=v;} });
@@ -1423,12 +1446,13 @@ function roundLabel(r, n) {
 function renderTeamsPreview() {
   const el = document.getElementById('teamsPreview');
   if (!S.teams.length) { el.innerHTML=''; return; }
-  el.innerHTML = `<div class="section-head">Generated Teams</div>` +
+  const isCom = S.role === 'committee';
+  el.innerHTML = `<div class="section-head">Generated Teams ${isCom?'<span style="font-size:10px;font-weight:400;color:var(--muted);">— tap a fencer to move them</span>':''}</div>` +
     S.teams.map(t => {
       const fd = t.fencers.map(id => S.fencers.find(f=>f.id===id)).filter(Boolean);
-      // Competitor can only rename their own team
       const myTeam = S.role==='competitor' && myFencerId && t.fencers.includes(myFencerId);
       const canRename = S.role==='committee' || S.role==='referee' || myTeam;
+      const worth = teamWorth(t);
       return `<div class="team-card">
         <div class="team-card-header">
           ${canRename
@@ -1436,14 +1460,16 @@ function renderTeamsPreview() {
             : `<span style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;color:var(--white);">${t.name}</span>`
           }
           <div style="display:flex;gap:5px;align-items:center;">
-            <span class="badge badge-muted">${fd.length} fencers</span>
+            <span class="badge badge-muted" style="font-family:'DM Mono',monospace;">⚖ ${worth}</span>
+            <span class="badge badge-muted">${fd.length}</span>
           </div>
         </div>
         <ul class="fencer-list">
-          ${fd.map(f=>`<li>
+          ${fd.map(f=>`<li style="${isCom?'cursor:pointer;':''}${isCom?'padding:3px 0;':''}" onclick="${isCom?`openMoveFencer(${f.id},${t.id})`:''}">
             <span class="dot ${f.level==='intermediate'?'int-dot':f.level==='novice'?'nov-dot':''}"></span>
             ${f.name}
             <span class="badge ${f.level==='intermediate'?'badge-gold':f.level==='novice'?'badge-red':'badge-blue'}" style="font-size:9px;padding:1px 5px;">${f.level==='intermediate'?'Int/Adv':f.level==='novice'?'Novice':'Beginner'}</span>
+            ${isCom?`<span style="margin-left:auto;font-size:10px;color:var(--muted);">move →</span>`:''}
           </li>`).join('')}
         </ul>
       </div>`;
@@ -1591,11 +1617,23 @@ function renderScoring() {
         <span class="match-meta" style="flex:1;text-align:center">Piste ${m.piste}</span>
         <span class="badge ${m.status==='live'?'badge-gold':m.status==='complete'?'badge-green':'badge-muted'}">${m.status.toUpperCase()}</span>
       </div>
-      <div class="score-teams">
-        <div class="score-team-block"><div class="score-team-name">${tA?.name}</div><div class="score-total a">${m.scoreA}</div></div>
-        <div style="text-align:center;align-self:flex-end;padding-bottom:3px;font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--muted);">of</div>
-        <div class="score-team-block right"><div class="score-team-name">${tB?.name}</div><div class="score-total b">${m.scoreB}</div></div>
-      </div>
+      ${(()=>{
+        const sw = swappedSides[m.id];
+        const leftName = sw ? tB?.name : tA?.name;
+        const rightName = sw ? tA?.name : tB?.name;
+        const leftScore = sw ? m.scoreB : m.scoreA;
+        const rightScore = sw ? m.scoreA : m.scoreB;
+        const leftClass = sw ? 'b' : 'a';
+        const rightClass = sw ? 'a' : 'b';
+        return `<div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:4px;">
+          ${isPriv?`<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 10px;" onclick="swappedSides[${m.id}]=!swappedSides[${m.id}];renderScoring();">⇄ Swap sides</button>`:''}
+        </div>
+        <div class="score-teams">
+          <div class="score-team-block"><div class="score-team-name">${leftName}</div><div class="score-total ${leftClass}">${leftScore}</div></div>
+          <div style="text-align:center;align-self:flex-end;padding-bottom:3px;font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--muted);">of</div>
+          <div class="score-team-block right"><div class="score-team-name">${rightName}</div><div class="score-total ${rightClass}">${rightScore}</div></div>
+        </div>`;
+      })()}
       <div style="text-align:center;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;">Target: ${m.target} pts · ${m.bouts.length} bouts</div>
       <div class="progress-bar" style="height:5px;margin:8px 0;"><div class="progress-fill a" style="width:${Math.round(m.scoreA/m.target*100)}%"></div><div class="progress-fill b" style="width:${Math.round(m.scoreB/m.target*100)}%;float:right"></div></div>
     </div>
@@ -1619,7 +1657,7 @@ function renderScoring() {
           return `<div class="bout-row" style="${isMine?'background:rgba(201,162,39,.08);border-radius:6px;padding:5px 6px;border:1px solid rgba(201,162,39,.2);margin-bottom:3px;':''}${canEditComplete?'cursor:pointer;':''}" onclick="${canEditComplete?'openBoutEdit('+m.id+','+bi+')':''}">
             <span class="bout-fencer active" style="${isMine&&b.fencerA===myName?'color:var(--gold);font-weight:600;':''}">${b.fencerA}${isMine&&b.fencerA===myName?' ★':''}</span>
             <span class="bout-pts a">${b.ptsA}</span>
-            <span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;">B${b.boutNum}${boutCards?'<br>'+boutCards:''}</span>
+            <span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;">B${b.boutNum}<br><span style="color:var(--gold);font-size:9px;">→${b.boutNum*5}pts</span>${boutCards?'<br>'+boutCards:''}</span>
             <span class="bout-pts b">${b.ptsB}</span>
             <span class="bout-fencer active" style="text-align:right;${isMine&&b.fencerB===myName?'color:var(--gold);font-weight:600;':''}">${b.fencerB}${isMine&&b.fencerB===myName?' ★':''}</span>
             <span class="badge badge-muted" style="font-size:9px;margin-left:3px;">✓</span>
@@ -1655,7 +1693,7 @@ function renderScoring() {
         </div>
       </div>
 
-      <div class="timer-display ${tc}" ${isPriv?`onclick="openTimerEdit(${m.id},${boutIdx})" title="Tap to adjust" style="cursor:pointer;"`:''}>${mins}:${secs}</div>
+      <div class="timer-display ${tc}" id="liveTimer_${m.id}" ${isPriv?`onclick="openTimerEdit(${m.id},${boutIdx})" title="Tap to set timer" style="cursor:pointer;"`:''}>${mins}:${secs}</div>
       ${isPriv?`
       <div style="display:flex;gap:7px;margin-bottom:8px;">
         <button class="btn btn-ghost btn-block btn-sm" onclick="toggleTimer(${m.id},${boutIdx})">${t.running?'⏸ Pause':'▶ Start timer'}</button>
@@ -1695,8 +1733,8 @@ function renderScoring() {
         <button class="btn btn-ghost btn-sm" onclick="promptNextBout(${m.id},'manual')" style="flex:1">⏹ End bout</button>
       </div>
       `:`
-      <div style="background:var(--navy2);border-radius:var(--r);padding:10px 12px;text-align:center;margin:8px 0 12px;border:1px solid var(--border);">
-        <span style="font-size:11px;color:var(--muted);">👁 View only</span>
+      <div style="background:var(--navy2);border-radius:var(--r);padding:10px 12px;text-align:center;margin:8px 0 4px;border:1px solid var(--border);">
+        <span style="font-size:11px;color:var(--muted);">👁 View only — timer updates live</span>
       </div>
       `}
 
@@ -1715,7 +1753,7 @@ function renderScoring() {
           >
             <span class="bout-fencer ${b.status==='active'?'active':''}" style="${isMine&&b.fencerA===myName?'color:var(--gold);font-weight:600;':''}">${b.fencerA}${isMine&&b.fencerA===myName?' ★':''}</span>
             <span class="bout-pts a">${b.ptsA}</span>
-            <span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;">B${b.boutNum}${boutCards?'<br>'+boutCards:''}</span>
+            <span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;">B${b.boutNum}<br><span style="color:var(--gold);font-size:9px;">→${b.boutNum*5}pts</span>${boutCards?'<br>'+boutCards:''}</span>
             <span class="bout-pts b">${b.ptsB}</span>
             <span class="bout-fencer ${b.status==='active'?'active':''}" style="text-align:right;${isMine&&b.fencerB===myName?'color:var(--gold);font-weight:600;':''}">${b.fencerB}${isMine&&b.fencerB===myName?' ★':''}</span>
             <span class="badge ${b.status==='done'?(canEdit?'badge-blue':'badge-muted'):b.status==='active'?'badge-gold':'badge-muted'}" style="font-size:9px;margin-left:3px;">${b.status==='done'?(canEdit?'✎':'✓'):b.status==='active'?'●':'–'}</span>
@@ -1802,7 +1840,84 @@ function removeCard(matchId) {
   renderScoring(); renderMatches();
 }
 
-// ── Bout score editing (referee / committee) ─────────────────────
+// ── Move fencer between teams (committee) ────────────────────
+let moveFencerContext = null;
+function openMoveFencer(fencerId, fromTeamId) {
+  if (S.role !== 'committee') return;
+  const f = S.fencers.find(x => x.id === fencerId);
+  const fromTeam = S.teams.find(t => t.id === fromTeamId);
+  if (!f || !fromTeam) return;
+  moveFencerContext = { fencerId, fromTeamId };
+
+  document.getElementById('moveFencerTitle').textContent = `Move ${f.name}`;
+  document.getElementById('moveFencerSub').textContent =
+    `Currently on: ${fromTeam.name} (⚖ ${teamWorth(fromTeam)})`;
+
+  // Populate destination team dropdown (exclude current team)
+  const otherTeams = S.teams.filter(t => t.id !== fromTeamId);
+  const teamSel = document.getElementById('moveFencerTeamSel');
+  teamSel.innerHTML = otherTeams.map(t =>
+    `<option value="${t.id}">${t.name} (⚖ ${teamWorth(t)} · ${t.fencers.length} fencers)</option>`
+  ).join('');
+
+  // Update swap options when destination changes
+  teamSel.onchange = () => updateSwapOptions(fencerId);
+  updateSwapOptions(fencerId);
+
+  openModal('moveFencerModal');
+}
+
+function updateSwapOptions(movingFencerId) {
+  const destId = parseInt(document.getElementById('moveFencerTeamSel').value);
+  const destTeam = S.teams.find(t => t.id === destId);
+  const swapRow = document.getElementById('moveFencerSwapRow');
+  const swapSel = document.getElementById('moveFencerSwapSel');
+  if (!destTeam || !destTeam.fencers.length) { swapRow.style.display = 'none'; return; }
+  const swappable = destTeam.fencers
+    .map(id => S.fencers.find(f => f.id === id))
+    .filter(Boolean);
+  swapSel.innerHTML = `<option value="">— just move (no swap) —</option>` +
+    swappable.map(f =>
+      `<option value="${f.id}">${f.name} (${f.level==='intermediate'?'Int/Adv':f.level==='novice'?'Novice':'Beginner'})</option>`
+    ).join('');
+  swapRow.style.display = 'block';
+}
+
+function confirmMoveFencer() {
+  if (!moveFencerContext) return;
+  const { fencerId, fromTeamId } = moveFencerContext;
+  const destId = parseInt(document.getElementById('moveFencerTeamSel').value);
+  const swapFencerId = parseInt(document.getElementById('moveFencerSwapSel').value) || null;
+
+  const fromTeam = S.teams.find(t => t.id === fromTeamId);
+  const destTeam = S.teams.find(t => t.id === destId);
+  if (!fromTeam || !destTeam) return;
+
+  if (swapFencerId) {
+    // Swap the two fencers between teams
+    fromTeam.fencers = fromTeam.fencers.filter(id => id !== fencerId);
+    destTeam.fencers = destTeam.fencers.filter(id => id !== swapFencerId);
+    fromTeam.fencers.push(swapFencerId);
+    destTeam.fencers.push(fencerId);
+    const f1 = S.fencers.find(f => f.id === fencerId)?.name || '?';
+    const f2 = S.fencers.find(f => f.id === swapFencerId)?.name || '?';
+    showToast(`Swapped: ${f1} ↔ ${f2}`);
+  } else {
+    // Just move
+    fromTeam.fencers = fromTeam.fencers.filter(id => id !== fencerId);
+    destTeam.fencers.push(fencerId);
+    const f1 = S.fencers.find(f => f.id === fencerId)?.name || '?';
+    showToast(`${f1} → ${destTeam.name}`);
+  }
+
+  moveFencerContext = null;
+  pushState();
+  closeModal('moveFencerModal');
+  renderTeamsPreview();
+  updateGenCard();
+}
+
+
 function openBoutEdit(matchId, boutIdx) {
   if (S.role!=='referee'&&S.role!=='committee') return;
   const m = S.matches.find(x=>x.id===matchId);
@@ -2186,10 +2301,18 @@ function renderStandings() {
       </div>
     </div>`;
   const myTeamId = myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId))?.id : null;
+  // Assign shared ranks for tied teams
+  const ranks = stats.map((s, i) => {
+    if (i === 0) return 1;
+    const prev = stats[i-1];
+    if (s.wins === prev.wins && s.diff === prev.diff && s.scored === prev.scored) return ranks[i-1];
+    return i + 1;
+  });
   stats.forEach((s,i)=>{
+    const rank = ranks[i];
     const isMe = s.team.id === myTeamId;
     html+=`<div class="standings-row" style="${isMe?'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.25);border-radius:8px;':''}">
-      <span class="st-rank ${i<2?'top':''}">${i+1}</span>
+      <span class="st-rank ${rank<=2?'top':''}">${rank}</span>
       <div style="flex:1"><div style="font-size:13px;font-weight:500;${isMe?'color:var(--gold);':''}">${s.team.name}${isMe?' ★':''}</div>
         ${s.live?`<div style="font-size:10px;color:var(--gold);">● LIVE Piste ${s.live.piste}</div>`:''}
       </div>
@@ -2214,6 +2337,27 @@ function showTab(tab) {
     document.getElementById('screen-scoring').classList.add('active');
     document.getElementById('bottomNav').style.display='none';
     renderScoring();
+    // Start live timer poll for non-priv viewers
+    if (!window._viewerTimerInterval) {
+      window._viewerTimerInterval = setInterval(function(){
+        if (S.currentTab !== 'scoring') { clearInterval(window._viewerTimerInterval); window._viewerTimerInterval = null; return; }
+        if (S.role === 'referee' || S.role === 'committee') return; // priv handles own render
+        const m = S.matches.find(x=>x.id===S.activeMatchId);
+        if (!m || m.status !== 'live') return;
+        const ab = m.bouts && m.bouts.find(b=>b.status==='active');
+        if (!ab) return;
+        const boutIdx = m.bouts.indexOf(ab);
+        const k = m.id+'_'+boutIdx;
+        const t = timers[k];
+        if (!t) return;
+        const el = document.getElementById('liveTimer_'+m.id);
+        if (!el) return;
+        const mins = Math.floor(t.seconds/60);
+        const secs = (t.seconds%60).toString().padStart(2,'0');
+        el.textContent = mins+':'+secs;
+        el.className = 'timer-display' + (t.seconds<=30?' danger':t.seconds<=60?' warning':'');
+      }, 500);
+    }
   } else {
     document.getElementById('bottomNav').style.display='flex';
     document.getElementById('screen-'+tab).classList.add('active');
