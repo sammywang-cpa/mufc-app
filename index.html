@@ -639,27 +639,39 @@ select option{background:var(--navy2);}
       <div style="font-size:13px;color:var(--muted);line-height:1.6;">
         Teams foil competition. Each team has 3 fencers (4 if necessary — no one left out). Teams are grouped by the organisers.
         <br><br>
-        <span style="color:var(--white);font-weight:500;">Phase 1 — Round Robin:</span> Every team fences every other team.<br>
-        <span style="color:var(--white);font-weight:500;">Phase 2 — Semi-Finals:</span> The 4 teams with the highest points advance. 1st vs 4th, 2nd vs 3rd.<br>
-        <span style="color:var(--white);font-weight:500;">Phase 3 — Grand Final:</span> The two semi-final winners compete for 1st place.
+        Each match is fenced in relay — fencers rotate each bout. A bout ends when the running total reaches the milestone <span style="color:var(--white);">or 3 minutes passes</span>. Scores carry over between bouts.
         <br><br>
-        Each match is fenced in relay — fencers rotate each bout. A bout ends when the running total reaches the milestone <span style="color:var(--white);">or 3 minutes passes</span>.
-        <br><br>
-        <span style="color:var(--white);font-weight:500;">30 pts</span> (6+ teams) — 6 bouts &nbsp;|&nbsp; <span style="color:var(--white);font-weight:500;">45 pts</span> (≤4 teams) — 9 bouts
+        <span style="color:var(--white);font-weight:500;">30 pts</span> (4+ teams) = 6 bouts &nbsp;·&nbsp; <span style="color:var(--white);font-weight:500;">45 pts</span> (2–3 teams) = 9 bouts
       </div>
 
-      <div style="margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;">
+      <div style="margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
         <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 1</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 5 pts</span></div>
         <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 2</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 10 pts</span></div>
         <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 3</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 15 pts</span></div>
         <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 4</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 20 pts</span></div>
         <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 5</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 25 pts</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 6</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 30 pts</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.5;"><span style="color:var(--muted);">Bout 7</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 35 pts</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.5;"><span style="color:var(--muted);">Bout 8</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 40 pts</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.5;"><span style="color:var(--muted);">Bout 9</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 45 pts</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--gold);font-weight:500;">Bout 6</span><span style="color:var(--gold);font-family:'DM Mono',monospace;font-weight:500;">→ 30 pts ✓</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.45;"><span style="color:var(--muted);">Bout 7</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 35 pts</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.45;"><span style="color:var(--muted);">Bout 8</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 40 pts</span></div>
+        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.45;"><span style="color:var(--muted);">Bout 9</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 45 pts</span></div>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Bouts 7–9 apply to the 45-point format only.</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px;">Bouts 7–9 for 45-point format only (dimmed above).</div>
+
+      <div style="margin-top:12px;font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">FORMAT BY SIGN-UPS</div>
+      <div style="background:var(--navy2);border-radius:var(--r);overflow:hidden;font-size:11px;">
+        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;background:var(--navy3);font-weight:500;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em;">
+          <span>Fencers</span><span>Teams</span><span>Format</span><span style="text-align:right;">~Time</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);"><span style="color:var(--white);">6–8</span><span style="color:var(--muted);">2</span><span style="color:var(--muted);">RR → Final <span style="color:var(--gold);">(45pts)</span></span><span style="text-align:right;color:#2ecc71;">~40 min</span></div>
+        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);background:rgba(255,255,255,.02);"><span style="color:var(--white);">9–11</span><span style="color:var(--muted);">3</span><span style="color:var(--muted);">Full RR → Final <span style="color:var(--gold);">(45pts)</span></span><span style="text-align:right;color:#2ecc71;">~80 min</span></div>
+        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);"><span style="color:var(--white);">12–14</span><span style="color:var(--muted);">4</span><span style="color:var(--muted);">Full RR → SF → Final</span><span style="text-align:right;color:var(--gold);">~100 min</span></div>
+        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);background:rgba(255,255,255,.02);"><span style="color:var(--white);">15–17</span><span style="color:var(--muted);">5</span><span style="color:var(--muted);">2 Pools → SF → Final</span><span style="text-align:right;color:#2ecc71;">~80 min</span></div>
+        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);"><span style="color:var(--white);">18–23</span><span style="color:var(--muted);">6–7</span><span style="color:var(--muted);">2 Pools → SF → Final</span><span style="text-align:right;color:var(--gold);">~80–100</span></div>
+        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);background:rgba(255,255,255,.02);"><span style="color:var(--white);">24–32</span><span style="color:var(--muted);">8</span><span style="color:var(--muted);">2 Pools → SF → Final</span><span style="text-align:right;color:var(--gold);">~100 min</span></div>
+        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);"><span style="color:var(--white);">33–48</span><span style="color:var(--muted);">9–16</span><span style="color:var(--muted);">3–4 Pools → SF → Final</span><span style="text-align:right;color:var(--gold);">≤100 min</span></div>
+        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);background:rgba(255,255,255,.02);"><span style="color:var(--white);">49–60</span><span style="color:var(--muted);">16</span><span style="color:var(--muted);">4 Pools → SF → Final</span><span style="text-align:right;color:var(--gold);">~100 min</span></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px;">App auto-selects format. All estimates based on 30-pt matches (~20 min each).</div>
     </div>
 
     <div style="height:1px;background:var(--border);margin:10px 0;"></div>
@@ -730,8 +742,18 @@ select option{background:var(--navy2);}
 <div class="modal-overlay" id="bracketReassignModal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title">Reassign Bracket Slot</div>
+    <div class="modal-title">Edit Match</div>
     <p class="text-muted" style="margin-bottom:14px;" id="bracketReassignSub"></p>
+    <div class="form-group">
+      <label>Piste number</label>
+      <select id="bracketReassignPiste">
+        <option value="1">Piste 1</option>
+        <option value="2">Piste 2</option>
+        <option value="3">Piste 3</option>
+        <option value="4">Piste 4</option>
+        <option value="5">Piste 5</option>
+      </select>
+    </div>
     <div class="form-group">
       <label>Team A slot</label>
       <select id="bracketReassignA"></select>
@@ -1301,10 +1323,17 @@ function updateGenCard() {
     gc.style.display = 'block';
     const numTeams = calcTeamCount(n);
     const fmt = calcFormat(numTeams);
-    document.getElementById('teamSizeInfo').textContent =
-      `${n} fencers → ${numTeams} teams (3–4 per team, no one left out)`;
-    document.getElementById('formatLabel').textContent = `${fmt.points} pts · ${fmt.bouts} bouts`;
-    document.getElementById('structureLabel').textContent = `RR → Top 4 → Semi-Finals → Final`;
+    const { base, extras } = calcTeamSizes(n, numTeams);
+    const sizeDesc = extras > 0
+      ? `${numTeams - extras} teams of ${base}, ${extras} team${extras>1?'s':''} of ${base+1}`
+      : `${numTeams} teams of ${base}`;
+    const estMin = estimateTime(numTeams);
+    const timeColour = estMin > 110 ? 'color:#e74c3c' : estMin > 90 ? 'color:var(--gold)' : 'color:#2ecc71';
+    document.getElementById('teamSizeInfo').innerHTML =
+      `${n} fencers → ${numTeams} teams &nbsp;<span style="color:var(--muted);font-size:11px;">(${sizeDesc})</span>`;
+    document.getElementById('formatLabel').textContent = `${fmt.points} pts · ${fmt.bouts} bouts${numTeams<=3?' (45pts — small group!)':''}`;
+    document.getElementById('structureLabel').innerHTML =
+      `${fmt.structure} &nbsp;<span style="${timeColour};font-size:11px;">~${estMin} min</span>`;
     const genBtn = document.getElementById('genTeamsBtn');
     if (genBtn) genBtn.style.display = isCom ? 'flex' : 'none';
     const genNote = document.getElementById('genTeamsNote');
@@ -1342,78 +1371,152 @@ function teamWorth(t) {
   }, 0);
 }
 
-// Best even team count so every fencer is on a team (3–4 per team)
+// ════════════════════════════════════════════════════════════════
+// FORMAT ENGINE — 6 to 60 fencers, teams of 3 or 4 only
+// 30pts default; ≤3 teams defaults to 45pts
+// Committee can override SF/Final to 45 at any time
+// ════════════════════════════════════════════════════════════════
+
+// Find best team count: any count (odd or even), max 4 per team, max 16 teams
 function calcTeamCount(n) {
-  for (let t = 10; t >= 2; t -= 2) {
-    const base = Math.floor(n / t);
-    if (base >= 3 && base <= 4) return t;
-    if (base === 3 && (n % t) <= t) return t;
-  }
-  for (let t = 10; t >= 2; t -= 2) {
-    if (Math.floor(n / t) >= 3) return t;
+  const maxTeams = Math.min(Math.floor(n / 3), 16);
+  for (let t = maxTeams; t >= 2; t--) {
+    if (Math.floor(n/t) >= 3 && Math.ceil(n/t) <= 4) return t;
   }
   return 2;
 }
 
+// Returns { base, extras } where extras teams get a 4th fencer
+function calcTeamSizes(n, numTeams) {
+  return { base: Math.floor(n / numTeams), extras: n % numTeams };
+}
+
+// Pool structure: every pool has 3-4 teams; handles odd team counts
+function getFormatProfile(teamCount) {
+  if (teamCount <= 2) return { teams: teamCount, pools: 1, sfNeeded: false, label: 'Round Robin → Final' };
+  if (teamCount === 3) return { teams: teamCount, pools: 1, sfNeeded: false, label: 'Full Round Robin → Final' };
+  if (teamCount === 4) return { teams: teamCount, pools: 1, sfNeeded: true,  label: 'Full Round Robin → SF → Final' };
+  // 5+: smallest pool count where each pool has 3–4 teams
+  for (let p = 2; p <= 4; p++) {
+    const tpp = Math.ceil(teamCount / p);
+    if (tpp >= 3 && tpp <= 4) return { teams: teamCount, pools: p, sfNeeded: true, label: p + ' Pools → SF → Final' };
+  }
+  return { teams: teamCount, pools: 4, sfNeeded: true, label: '4 Pools → SF → Final' };
+}
+
+function calcFormat(teamCount) {
+  const profile = getFormatProfile(teamCount);
+  const points = teamCount <= 3 ? 45 : 30;
+  return { points, bouts: points / 5, teams: teamCount, structure: profile.label, profile };
+}
+
+// Estimated time in minutes
+function estimateTime(teamCount) {
+  const profile = getFormatProfile(teamCount);
+  const tpp = Math.ceil(teamCount / profile.pools);
+  const rrTime = (tpp - 1) * 20;
+  const deTime = profile.sfNeeded ? 40 : 20;
+  return rrTime + deTime;
+}
+
+// ── 4-fencer team bout order ──────────────────────────────────────
+// Int/Adv fences twice: bout 1 and bout 4 (first and middle of second rotation)
+function initBouts(match) {
+  const tA = S.teams.find(t=>t.id===match.teamA);
+  const tB = S.teams.find(t=>t.id===match.teamB);
+  if (!tA||!tB) return;
+
+  // Build ordered fencer list: Int/Adv first, then others
+  function orderedFencers(team) {
+    const fs = team.fencers.map(id=>S.fencers.find(f=>f.id===id)).filter(Boolean);
+    const ints = fs.filter(f=>f.level==='intermediate');
+    const rest = fs.filter(f=>f.level!=='intermediate');
+    return [...ints, ...rest];
+  }
+  const fA = orderedFencers(tA);
+  const fB = orderedFencers(tB);
+  const nb = match.target / 5;
+
+  // Bout order rules:
+  // 3-fencer team (6 bouts): rotation 0,1,2,0,1,2
+  // 4-fencer team (6 bouts): Int/Adv (idx 0) fences bout 1 (idx 0) AND bout 6 (idx 5)
+  //   Bouts 2-5: remaining 3 fencers in order 1,2,3,1
+  //   Order: [0, 1, 2, 3, 1, 0]  ← Int/Adv first and last
+  function getFencer(fencers, boutIdx) {
+    if (fencers.length === 4) {
+      const order4 = [0, 1, 2, 3, 1, 0, 0, 1, 2]; // 9 bouts max; bouts 1&6 = Int/Adv
+      return fencers[order4[boutIdx % order4.length]];
+    }
+    return fencers[boutIdx % fencers.length];
+  }
+
+  match.bouts = Array.from({length: nb}, (_, i) => ({
+    boutNum: i+1,
+    fencerA: getFencer(fA, i)?.name || '?',
+    fencerB: getFencer(fB, i)?.name || '?',
+    ptsA: 0, ptsB: 0,
+    status: i===0 ? 'active' : 'pending',
+    cards: [], scorersA: {}, scorersB: {}
+  }));
+}
+
+// ── Team generation ───────────────────────────────────────────────
 function generateTeams() {
   if (S.role !== 'committee') { showToast('Committee only'); return; }
   const valid = S.fencers.filter(f => !f.bailed && f.name.trim());
-  if (valid.length < 4) { showToast('Need at least 4 fencers'); return; }
+  if (valid.length < 6) { showToast('Need at least 6 fencers (2 teams of 3)'); return; }
+  if (valid.length > 60) { showToast('Maximum 60 fencers supported'); return; }
 
   const numTeams = calcTeamCount(valid.length);
   S.format = calcFormat(numTeams);
-
-  const names = ['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India','Juliet'];
+  const profile = S.format.profile;  const names = ['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India','Juliet','Kilo','Lima'];
   S.teams = Array.from({length: numTeams}, (_, i) => ({ id: tId++, name: names[i], fencers: [] }));
 
-  // Shuffle within each skill tier so draws vary
-  const ints  = shuffle(valid.filter(f => f.level === 'intermediate'));
-  const novs  = shuffle(valid.filter(f => f.level === 'novice'));
-  const begs  = shuffle(valid.filter(f => f.level === 'beginner'));
-  const lower = [...novs, ...begs]; // non-intermediates together
+  // Determine target size per team: base=3, some teams get 4
+  const { base, extras } = calcTeamSizes(valid.length, numTeams);
+  // Teams with index < extras get size (base+1), rest get base
+  // Sort teams so lowest-worth get the extra fencer (4th slot goes to weakest teams)
+  const maxSize = (i) => i < extras ? base + 1 : base;
 
-  // ── PASS 1: guarantee at least one int/adv per team ──────────────────
-  // Distribute ints round-robin first (one per team). Extras go to pool.
+  // Shuffle within skill tiers
+  const ints = shuffle(valid.filter(f => f.level === 'intermediate'));
+  const novs = shuffle(valid.filter(f => f.level === 'novice'));
+  const begs = shuffle(valid.filter(f => f.level === 'beginner'));
+  const lower = [...novs, ...begs];
+
+  // Pass 1: one Int/Adv per team (round-robin), extras to pool
   const intPool = [];
   ints.forEach((f, i) => {
     if (i < numTeams) S.teams[i].fencers.push(f.id);
     else intPool.push(f);
   });
 
-  // ── PASS 2: guarantee at least one beginner/novice per team ──────────
-  // Assign one lower-skill fencer to each team that doesn't have one yet,
-  // picking the team with lowest worth each time.
+  // Pass 2: one beginner/novice per team that lacks one
   const lowerPool = [...lower];
-  // Teams that have no lower-skill fencer yet get first pick
-  const teamsNeedingLower = S.teams.filter(t =>
-    !t.fencers.some(id => {
-      const f = S.fencers.find(x => x.id === id);
-      return f && f.level !== 'intermediate';
-    })
-  );
-  teamsNeedingLower.forEach(t => {
-    if (lowerPool.length) t.fencers.push(lowerPool.shift().id);
-    // If no lower-skill left, team gets an extra int instead (handled in pass 3)
-  });
+  S.teams.filter(t => !t.fencers.some(id => {
+    const f = S.fencers.find(x=>x.id===id); return f && f.level !== 'intermediate';
+  })).forEach(t => { if (lowerPool.length) t.fencers.push(lowerPool.shift().id); });
 
-  // ── PASS 3: worth-based fill for all remaining fencers ───────────────
-  // Remaining = extra ints + remaining lower-skill fencers, sorted desc by worth
-  const remaining = [...intPool, ...lowerPool]
-    .sort((a, b) => fencerWorth(b) - fencerWorth(a));
-
+  // Pass 3: worth-based fill — assign remaining to lowest-worth team that still has room
+  const remaining = [...intPool, ...lowerPool].sort((a,b) => fencerWorth(b)-fencerWorth(a));
   remaining.forEach(f => {
-    // Assign to the team with lowest current worth (that still has room)
-    const eligible = S.teams.filter(t => t.fencers.length < 4);
-    const target = (eligible.length ? eligible : S.teams)
-      .reduce((a, b) => teamWorth(a) <= teamWorth(b) ? a : b);
+    // Determine capacity for each team based on target size
+    // Teams sorted by worth: lowest-worth gets 4-person slot first
+    const sortedByWorth = [...S.teams].sort((a,b)=>teamWorth(a)-teamWorth(b));
+    let target = null;
+    for (const t of sortedByWorth) {
+      const idx = S.teams.indexOf(t);
+      if (t.fencers.length < maxSize(idx)) { target = t; break; }
+    }
+    if (!target) target = S.teams.reduce((a,b)=>a.fencers.length<=b.fencers.length?a:b);
     target.fencers.push(f.id);
   });
 
-  // ── PASS 4: safety overflow cap at 4 ─────────────────────────────────
+  // Pass 4: hard cap at 4
   let overflow = [];
   S.teams.forEach(t => { if (t.fencers.length > 4) overflow.push(...t.fencers.splice(4)); });
   overflow.forEach(fid => {
-    const t = S.teams.reduce((a, b) => a.fencers.length <= b.fencers.length ? a : b);
+    const t = S.teams.reduce((a,b)=>a.fencers.length<=b.fencers.length?a:b);
     t.fencers.push(fid);
   });
 
@@ -1423,74 +1526,177 @@ function generateTeams() {
   updateGenCard();
 }
 
+// ── Bracket builder ───────────────────────────────────────────────
 function buildBracket(numTeams) {
   S.matches = []; S.bracket = [];
-  const PISTES = [1,2,3,4,5];
-  let pi = 0;
+  const profile = S.format.profile || getFormatProfile(numTeams);
+  const numPools = profile.pools;
+  const teamsPerPool = Math.ceil(numTeams / numPools);
 
-  // ── PHASE 1: Round Robin — every team plays every other team ──────
+  // Split teams into pools by worth (interleave for balance)
+  // Sort teams by worth desc, then snake-distribute into pools
+  const sorted = [...S.teams].sort((a,b)=>teamWorth(b)-teamWorth(a));
+  const pools = Array.from({length: numPools}, () => []);
+  sorted.forEach((t, i) => {
+    // Snake: 0,1,2,1,0 for 3 pools etc
+    const row = Math.floor(i / numPools);
+    const col = row % 2 === 0 ? (i % numPools) : (numPools - 1 - i % numPools);
+    pools[col].push(t);
+  });
+
+  // Generate RR matches within each pool, schedule using greedy slot algorithm
+  // Slots are GLOBAL — matches from different pools share piste time
+  const allPoolPairs = [];
+  pools.forEach((pool, poolIdx) => {
+    for (let i = 0; i < pool.length; i++)
+      for (let j = i+1; j < pool.length; j++)
+        allPoolPairs.push({ tA: pool[i], tB: pool[j], pool: poolIdx });
+  });
+
+  // Greedy slot scheduler: no team on two pistes in same slot, max 5 pistes per slot
+  const PISTES = [1,2,3,4,5];
+  const slots = [];
+  const unscheduled = [...allPoolPairs];
+  while (unscheduled.length) {
+    const slot = []; const busyTeams = new Set(); const remaining = [];
+    for (const pair of unscheduled) {
+      if (!busyTeams.has(pair.tA.id) && !busyTeams.has(pair.tB.id) && slot.length < 5) {
+        slot.push(pair); busyTeams.add(pair.tA.id); busyTeams.add(pair.tB.id);
+      } else remaining.push(pair);
+    }
+    slots.push(slot); unscheduled.splice(0, unscheduled.length, ...remaining);
+  }
+
   const rrMatchIds = [];
-  for (let i = 0; i < S.teams.length; i++) {
-    for (let j = i+1; j < S.teams.length; j++) {
+  const poolLabels = pools.map((pool, i) =>
+    numPools === 1 ? 'Round Robin' : 'Pool ' + String.fromCharCode(65+i)
+  );
+  slots.forEach((slot, slotIdx) => {
+    slot.forEach((pair, pi) => {
       const m = {
         id: mId++, round: 'rr', piste: PISTES[pi % 5],
-        teamA: S.teams[i].id, teamB: S.teams[j].id,
+        teamA: pair.tA.id, teamB: pair.tB.id,
         bouts: [], scoreA: 0, scoreB: 0, target: S.format.points,
-        status: 'pending', winner: null, phase: 'rr'
+        status: 'pending', winner: null, phase: 'rr',
+        poolIdx: pair.pool, slot: slotIdx + 1
       };
-      S.matches.push(m); rrMatchIds.push(m.id); pi++;
-    }
+      S.matches.push(m); rrMatchIds.push(m.id);
+    });
+  });
+  S.bracket.push({ round: 'rr', label: numPools===1?'Round Robin':'Pool Stage', matchIds: rrMatchIds, pools: poolLabels });
+
+  // Semi-finals — only if profile requires it
+  if (profile.sfNeeded) {
+    const sf1 = { id: mId++, round: 'sf', piste: 1, teamA: 'TBD_sf1a', teamB: 'TBD_sf1b',
+      bouts: [], scoreA: 0, scoreB: 0, target: S.format.points, status: 'waiting', winner: null, phase: 'sf' };
+    const sf2 = { id: mId++, round: 'sf', piste: 2, teamA: 'TBD_sf2a', teamB: 'TBD_sf2b',
+      bouts: [], scoreA: 0, scoreB: 0, target: S.format.points, status: 'waiting', winner: null, phase: 'sf' };
+    S.matches.push(sf1, sf2);
+    S.bracket.push({ round: 'sf', label: 'Semi-Finals (1v4, 2v3)', matchIds: [sf1.id, sf2.id] });
   }
-  S.bracket.push({ round: 'rr', label: 'Round Robin', matchIds: rrMatchIds });
 
-  // ── PHASE 2: Semi-finals (top 4 — TBD until RR complete) ─────────
-  const sf1 = { id: mId++, round: 'sf', piste: PISTES[pi%5], teamA: 'TBD_sf1a', teamB: 'TBD_sf1b',
-    bouts: [], scoreA: 0, scoreB: 0, target: S.format.points, status: 'waiting', winner: null, phase: 'sf' };
-  const sf2 = { id: mId++, round: 'sf', piste: PISTES[(pi+1)%5], teamA: 'TBD_sf2a', teamB: 'TBD_sf2b',
-    bouts: [], scoreA: 0, scoreB: 0, target: S.format.points, status: 'waiting', winner: null, phase: 'sf' };
-  S.matches.push(sf1, sf2);
-  S.bracket.push({ round: 'sf', label: 'Semi-Finals (Top 4)', matchIds: [sf1.id, sf2.id] });
-
-  // ── PHASE 3: Grand Final ──────────────────────────────────────────
-  const gf = { id: mId++, round: 'gf', piste: PISTES[(pi+2)%5], teamA: 'TBD_gf_a', teamB: 'TBD_gf_b',
+  const gf = { id: mId++, round: 'gf', piste: 1, teamA: 'TBD_gf_a', teamB: 'TBD_gf_b',
     bouts: [], scoreA: 0, scoreB: 0, target: S.format.points, status: 'waiting', winner: null, phase: 'gf' };
   S.matches.push(gf);
   S.bracket.push({ round: 'gf', label: 'Grand Final', matchIds: [gf.id] });
 }
 
-// Called after every RR or SF match completes
 function advanceBracket(m) {
   if (m.phase === 'rr') {
-    // Check if all RR matches are done
     const rrMatches = S.matches.filter(x => x.phase === 'rr');
-    const allRRDone = rrMatches.every(x => x.status === 'complete');
-    if (allRRDone) seedSemiFinals();
+    if (rrMatches.every(x => x.status === 'complete')) {
+      const profile = S.format?.profile || getFormatProfile(S.teams.length);
+      if (!profile.sfNeeded) seedFinalDirect();
+      else seedSemiFinals();
+    }
   } else if (m.phase === 'sf') {
-    // Check if both SFs done → seed final
     const sfMatches = S.matches.filter(x => x.phase === 'sf');
     if (sfMatches.every(x => x.status === 'complete')) seedFinal();
   }
-  // gf has no advancement
+}
+
+function seedFinalDirect() {
+  // For 2-team RR: top 2 (all teams) go straight to final
+  const standings = getRRStandings();
+  const gf = S.matches.find(x => x.phase === 'gf');
+  if (!gf) return;
+  gf.teamA = standings[0]?.team.id || 'TBD';
+  gf.teamB = standings[1]?.team.id || 'TBD';
+  if (S.teams.find(t=>t.id===gf.teamA) && S.teams.find(t=>t.id===gf.teamB)) {
+    gf.status = 'pending'; initBouts(gf);
+  }
 }
 
 function getRRStandings() {
-  return S.teams.map(t => {
-    const ms = S.matches.filter(x => x.phase==='rr' && (x.teamA===t.id||x.teamB===t.id) && x.status==='complete');
-    const wins = ms.filter(x => (x.winner==='A'&&x.teamA===t.id)||(x.winner==='B'&&x.teamB===t.id)).length;
-    const scored = ms.reduce((s,x) => s+(x.teamA===t.id?x.scoreA:x.scoreB), 0);
-    const conceded = ms.reduce((s,x) => s+(x.teamA===t.id?x.scoreB:x.scoreA), 0);
-    return { team: t, wins, played: ms.length, scored, conceded, diff: scored-conceded };
-  }).sort((a,b) => b.wins-a.wins || b.diff-a.diff || b.scored-a.scored);
+  // Per-pool standings when multiple pools exist
+  const numPools = S.format?.profile?.pools || 1;
+  if (numPools === 1) {
+    // Single pool: rank all teams by wins → diff → scored
+    return S.teams.map(t => {
+      const ms = S.matches.filter(x => x.phase==='rr' && (x.teamA===t.id||x.teamB===t.id) && x.status==='complete');
+      const wins = ms.filter(x=>(x.winner==='A'&&x.teamA===t.id)||(x.winner==='B'&&x.teamB===t.id)).length;
+      const scored = ms.reduce((s,x)=>s+(x.teamA===t.id?x.scoreA:x.scoreB),0);
+      const conceded = ms.reduce((s,x)=>s+(x.teamA===t.id?x.scoreB:x.scoreA),0);
+      const poolIdx = S.matches.find(x=>x.phase==='rr'&&(x.teamA===t.id||x.teamB===t.id))?.poolIdx ?? 0;
+      return { team: t, wins, played: ms.length, scored, conceded, diff: scored-conceded, poolIdx };
+    }).sort((a,b)=>b.wins-a.wins||b.diff-a.diff||b.scored-a.scored);
+  }
+  // Multi-pool: rank within each pool, then merge top 2 per pool
+  const poolResults = [];
+  for (let p = 0; p < numPools; p++) {
+    const poolTeamIds = [...new Set(
+      S.matches.filter(x=>x.phase==='rr'&&x.poolIdx===p).flatMap(x=>[x.teamA,x.teamB])
+    )];
+    const poolStandings = poolTeamIds.map(tid => {
+      const t = S.teams.find(x=>x.id===tid);
+      if (!t) return null;
+      const ms = S.matches.filter(x=>x.phase==='rr'&&x.poolIdx===p&&(x.teamA===t.id||x.teamB===t.id)&&x.status==='complete');
+      const wins = ms.filter(x=>(x.winner==='A'&&x.teamA===t.id)||(x.winner==='B'&&x.teamB===t.id)).length;
+      const scored = ms.reduce((s,x)=>s+(x.teamA===t.id?x.scoreA:x.scoreB),0);
+      const conceded = ms.reduce((s,x)=>s+(x.teamA===t.id?x.scoreB:x.scoreA),0);
+      return { team: t, wins, played: ms.length, scored, conceded, diff: scored-conceded, poolIdx: p };
+    }).filter(Boolean).sort((a,b)=>b.wins-a.wins||b.diff-a.diff||b.scored-a.scored);
+    poolResults.push(poolStandings);
+  }
+  // Return merged: all results, sorted by pool rank then stats
+  return poolResults.flat();
+}
+
+function getTop4() {
+  const numPools = S.format?.profile?.pools || 1;
+  const standings = getRRStandings();
+  if (numPools === 1) return standings.slice(0, 4);
+  // Multi-pool: top 2 from each pool → rank by stats → top 4
+  const numPools2 = numPools;
+  const topPerPool = [];
+  for (let p = 0; p < numPools2; p++) {
+    const poolTeams = standings.filter(s => s.poolIdx === p);
+    topPerPool.push(...poolTeams.slice(0, 2));
+  }
+  return topPerPool.sort((a,b)=>b.wins-a.wins||b.diff-a.diff||b.scored-a.scored).slice(0,4);
+}
+
+function getIndividualScores() {
+  const totals = {};
+  S.matches.filter(m=>m.status==='complete').forEach(m=>{
+    m.bouts.forEach(b=>{
+      if (b.scorersA) Object.entries(b.scorersA).forEach(([name,pts])=>{ totals[name]=(totals[name]||0)+pts; });
+      if (b.scorersB) Object.entries(b.scorersB).forEach(([name,pts])=>{ totals[name]=(totals[name]||0)+pts; });
+    });
+  });
+  return Object.entries(totals).map(([name,pts])=>{
+    const fencer=S.fencers.find(f=>f.name===name);
+    const team=S.teams.find(t=>t.fencers.includes(fencer?.id));
+    return { name, pts, level:fencer?.level||'beginner', teamName:team?.name||'?' };
+  }).sort((a,b)=>b.pts-a.pts);
 }
 
 function seedSemiFinals() {
-  const standings = getRRStandings();
-  const top4 = standings.slice(0, 4);
-  // 1st vs 4th, 2nd vs 3rd
+  const top4 = getTop4();
   const sfMatches = S.matches.filter(x => x.phase === 'sf');
-  if (sfMatches.length < 2) return;
+  if (sfMatches.length < 2 || top4.length < 2) return;
   sfMatches[0].teamA = top4[0].team.id;
-  sfMatches[0].teamB = top4[3]?.team.id || 'TBD';
+  sfMatches[0].teamB = top4[3]?.team.id || top4[top4.length-1].team.id;
   sfMatches[1].teamA = top4[1]?.team.id || 'TBD';
   sfMatches[1].teamB = top4[2]?.team.id || 'TBD';
   sfMatches.forEach(m => {
@@ -1512,14 +1718,31 @@ function seedFinal() {
   }
 }
 
+function overrideMatchTarget(phase, newTarget) {
+  if (S.role !== 'committee') return;
+  const pts = parseInt(newTarget);
+  if (pts !== 30 && pts !== 45) return;
+  const bouts = pts / 5;
+  const estWarning = pts === 45 ? ' (adds ~10 min per match)' : '';
+  if (!confirm(`Change ${phase==='sf'?'Semi-Finals':'Grand Final'} to ${pts} points${estWarning}?`)) return;
+  S.matches.filter(m => m.phase === phase && m.status !== 'complete').forEach(m => {
+    m.target = pts;
+    // Reinitialise bouts if match is pending (hasn't started yet)
+    if (m.status === 'pending') { m.bouts = []; initBouts(m); }
+    // If live, just update target — current bouts continue, new bouts will have new target
+  });
+  pushState();
+  renderBracket();
+  showToast(`${phase==='sf'?'Semi-Finals':'Grand Final'} → ${pts} pts`);
+}
+
 function roundLabel(r, n) {
   if (r === 'gf') return 'Grand Final';
   if (r === 'sf') return 'Semi-Finals';
-  if (r === 'rr') return 'Round Robin';
-  if (n===2) return 'Grand Final';
-  if (n===4) return 'Semi-Finals';
-  return `Round ${r}`;
+  if (r === 'rr') return 'Round Robin / Pool Stage';
+  return 'Round ' + r;
 }
+
 
 function renderTeamsPreview() {
   const el = document.getElementById('teamsPreview');
@@ -1565,19 +1788,7 @@ function startCompetition() {
   showToast('En garde! 🤺 Competition started');
 }
 
-function initBouts(match) {
-  const tA = S.teams.find(t=>t.id===match.teamA);
-  const tB = S.teams.find(t=>t.id===match.teamB);
-  if (!tA||!tB) return;
-  const fA = tA.fencers.map(id=>S.fencers.find(f=>f.id===id)).filter(Boolean);
-  const fB = tB.fencers.map(id=>S.fencers.find(f=>f.id===id)).filter(Boolean);
-  const nb = match.target/5;
-  match.bouts = Array.from({length:nb},(_,i)=>({
-    boutNum:i+1, fencerA:fA[i%fA.length]?.name||'?', fencerB:fB[i%fB.length]?.name||'?',
-    ptsA:0, ptsB:0, status:i===0?'active':'pending',
-    cards:[] // [{side:'A'|'B', type:'yellow'|'red', reason:''}]
-  }));
-}
+
 
 // ════════════════════════════════════════════════
 // MATCH RENDERING
@@ -1853,7 +2064,15 @@ function addPoint(matchId, side) {
   if (!m||m.status==='complete') return;
   const ab = m.bouts.find(b=>b.status==='active');
   if (!ab) return;
-  if (side==='A'){ab.ptsA++;m.scoreA++;}else{ab.ptsB++;m.scoreB++;}
+  if (side==='A'){
+    ab.ptsA++;m.scoreA++;
+    if(!ab.scorersA) ab.scorersA={};
+    ab.scorersA[ab.fencerA]=(ab.scorersA[ab.fencerA]||0)+1;
+  } else {
+    ab.ptsB++;m.scoreB++;
+    if(!ab.scorersB) ab.scorersB={};
+    ab.scorersB[ab.fencerB]=(ab.scorersB[ab.fencerB]||0)+1;
+  }
   // Check overall match target — pause and confirm before declaring winner
   if (m.scoreA>=m.target||m.scoreB>=m.target) {
     stopTimer(m.id+'_'+m.bouts.indexOf(ab));
@@ -1930,27 +2149,22 @@ let bracketReassignContext = null;
 function openBracketReassign(matchId) {
   if (S.role !== 'committee') return;
   const m = S.matches.find(x => x.id === matchId);
-  if (!m || (m.status !== 'pending' && m.status !== 'waiting')) return;
-
+  if (!m) return; // allow editing any non-live/non-complete match
   bracketReassignContext = matchId;
   const tA = S.teams.find(t => t.id === m.teamA);
   const tB = S.teams.find(t => t.id === m.teamB);
   document.getElementById('bracketReassignSub').textContent =
-    `Match on Piste ${m.piste} — ${m.target} pts`;
-
-  // Options: all teams + TBD option
-  const opts = `<option value="TBD">TBD (not yet decided)</option>` +
+    `${m.phase==='rr'?'RR Match':m.phase==='sf'?'Semi-Final':'Grand Final'} — ${m.target} pts`;
+  // Pre-fill piste
+  document.getElementById('bracketReassignPiste').value = m.piste;
+  // Options: all teams + TBD
+  const opts = `<option value="TBD">TBD</option>` +
     S.teams.map(t => `<option value="${t.id}">${t.name} (⚖ ${teamWorth(t)})</option>`).join('');
-
   const selA = document.getElementById('bracketReassignA');
   const selB = document.getElementById('bracketReassignB');
-  selA.innerHTML = opts;
-  selB.innerHTML = opts;
-
-  // Set current values
+  selA.innerHTML = opts; selB.innerHTML = opts;
   selA.value = tA ? m.teamA : 'TBD';
   selB.value = tB ? m.teamB : 'TBD';
-
   openModal('bracketReassignModal');
 }
 
@@ -1960,14 +2174,14 @@ function confirmBracketReassign() {
   if (!m) return;
   const selA = document.getElementById('bracketReassignA').value;
   const selB = document.getElementById('bracketReassignB').value;
+  const piste = parseInt(document.getElementById('bracketReassignPiste').value);
   m.teamA = selA === 'TBD' ? ('TBD_'+m.id) : parseInt(selA);
   m.teamB = selB === 'TBD' ? ('TBD_'+m.id+'b') : parseInt(selB);
-  // If both real teams now assigned, set pending and init bouts
+  if (piste >= 1 && piste <= 5) m.piste = piste;
   const tA = S.teams.find(t => t.id === m.teamA);
   const tB = S.teams.find(t => t.id === m.teamB);
   if (tA && tB && m.status === 'waiting') {
-    m.status = 'pending';
-    initBouts(m);
+    m.status = 'pending'; initBouts(m);
   }
   bracketReassignContext = null;
   pushState();
@@ -2247,20 +2461,6 @@ function endMatch(m) {
   showToast(`🏆 ${winner?.name} wins!`);
 }
 
-function advanceBracket(m) {
-  const nextRound = m.round+1;
-  const curIds = S.bracket.find(b=>b.round===m.round)?.matchIds||[];
-  const pos = curIds.indexOf(m.id);
-  const nextBr = S.bracket.find(b=>b.round===nextRound);
-  if (!nextBr) return;
-  const nextM = S.matches.find(x=>x.id===nextBr.matchIds[Math.floor(pos/2)]);
-  if (!nextM) return;
-  const winnerId = m.winner==='A'?m.teamA:m.teamB;
-  if (pos%2===0) nextM.teamA=winnerId; else nextM.teamB=winnerId;
-  const tA = S.teams.find(t=>t.id===nextM.teamA);
-  const tB = S.teams.find(t=>t.id===nextM.teamB);
-  if (tA&&tB) { nextM.status='pending'; initBouts(nextM); }
-}
 
 // ════════════════════════════════════════════════
 // FENCER SWAP (referee / committee)
@@ -2412,14 +2612,21 @@ function renderBracket() {
   dePhases.forEach(({phase, label}) => {
     const phaseMatches = S.matches.filter(m=>m.phase===phase);
     if (!phaseMatches.length) return;
-    html += `<div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;">${label}</div>`;
+    const currentPts = phaseMatches[0]?.target || 30;
+    const canOverride = isCom && phaseMatches.some(m=>m.status!=='complete');
+    const overrideBtn = canOverride
+      ? `<span style="margin-left:8px;font-size:11px;color:var(--purple2);cursor:pointer;text-decoration:underline;"
+           onclick="overrideMatchTarget('${phase}',${currentPts===30?45:30})"
+         >${currentPts===30?'→ 45pts':'→ 30pts'}</span>`
+      : `<span style="font-size:11px;color:var(--muted);margin-left:8px;">${currentPts}pts</span>`;
+    html += `<div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;">${label}${overrideBtn}</div>`;
     phaseMatches.forEach(m => {
       const tA=S.teams.find(t=>t.id===m.teamA), tB=S.teams.find(t=>t.id===m.teamB);
       const nA=tA?.name||(m.teamA?.toString().startsWith('TBD')?'TBD':'?');
       const nB=tB?.name||(m.teamB?.toString().startsWith('TBD')?'TBD':'?');
       const sc=m.status==='live'?'live':m.status==='complete'?'complete':'';
       const isMyMatch = myTeam && (myTeam.id===m.teamA || myTeam.id===m.teamB);
-      const canReassign = isCom && (m.status==='pending'||m.status==='waiting');
+      const canReassign = isCom && m.status !== 'live' && m.status !== 'complete';
       html+=`<div class="bracket-match ${sc}" style="${isMyMatch?'border-color:var(--gold);':''}margin-bottom:8px;">
         <div class="bracket-team-row ${m.status==='complete'&&m.winner==='A'?'winner':''}">
           <span class="seed">A</span>
@@ -2434,7 +2641,7 @@ function renderBracket() {
         <div class="bracket-match-meta">
           <span>Piste ${m.piste}</span><span>${m.target}pts</span>
           <span class="badge ${m.status==='live'?'badge-gold':m.status==='complete'?'badge-green':'badge-muted'}" style="font-size:9px">${m.status}</span>
-          ${canReassign?`<span style="color:var(--purple2);font-size:10px;cursor:pointer;text-decoration:underline;" onclick="openBracketReassign(${m.id})">✎ reassign</span>`:''}
+          ${canReassign?`<span style="color:var(--purple2);font-size:10px;cursor:pointer;text-decoration:underline;" onclick="openBracketReassign(${m.id})">✎ edit</span>`:''}
         </div>
       </div>`;
     });
@@ -2490,6 +2697,54 @@ function renderStandings() {
       </div>
     </div>`;
   });
+
+  // ── Individual scoring ────────────────────────────────────────────
+  const indScores = getIndividualScores();
+  const isCom = S.role === 'committee';
+  const showFull = isCom;
+  const showTop3 = indScores.length > 0;
+
+  if (showTop3) {
+    html += `<div class="section-head" style="margin-top:16px;">Individual Scoring</div>`;
+
+    // Top 3 visible to all
+    const top3 = indScores.slice(0, 3);
+    top3.forEach((p, i) => {
+      const isMyself = myFencerId && S.fencers.find(f=>f.id===myFencerId)?.name === p.name;
+      const medal = i===0?'🥇':i===1?'🥈':'🥉';
+      html += `<div class="standings-row" style="${isMyself?'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.25);border-radius:8px;':''}">
+        <span style="font-size:18px;width:22px;text-align:center;">${medal}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500;${isMyself?'color:var(--gold)':''}">${p.name}${isMyself?' ★':''}</div>
+          <div style="font-size:11px;color:var(--muted);">${p.teamName}</div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);">${p.pts}<span style="font-size:12px;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:400;"> pts</span></div>
+      </div>`;
+    });
+
+    // Full list — committee only
+    if (showFull && indScores.length > 3) {
+      html += `<div style="margin-top:6px;background:var(--navy2);border-radius:var(--r);padding:10px 12px;">
+        <div style="font-size:11px;color:var(--purple2);margin-bottom:8px;">🛡 Full ranking (committee)</div>`;
+      indScores.forEach((p, i) => {
+        const indRank = i===0?1:(indScores[i-1].pts===p.pts?indRanks[i-1]:i+1);
+        const indRanks = indScores.map((x,j) => {
+          if(j===0) return 1;
+          return indScores[j-1].pts===x.pts?(j===0?1:j):j+1;
+        });
+        html += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">
+          <span style="font-family:'DM Mono',monospace;color:var(--muted);width:18px;">${i+1}</span>
+          <span style="flex:1;font-weight:500;">${p.name}</span>
+          <span style="color:var(--muted);font-size:11px;">${p.teamName}</span>
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);margin-left:8px;">${p.pts}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    } else if (!showFull && indScores.length > 3) {
+      html += `<div style="text-align:center;font-size:11px;color:var(--muted);padding:6px 0;">Full ranking visible to committee only</div>`;
+    }
+  }
+
   el.innerHTML=html;
 }
 
