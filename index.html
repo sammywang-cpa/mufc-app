@@ -368,12 +368,29 @@ select option{background:var(--navy2);}
       </div>
 
       <div class="card" id="genCard" style="display:none">
-        <div class="card-title">Teams</div>
+        <div class="card-title">Competition Setup</div>
         <div id="teamSizeInfo" class="text-muted" style="font-size:12px;margin-bottom:10px;"></div>
         <div class="info-row"><span class="lbl">Format</span><span id="formatLabel" style="color:var(--gold);font-family:'DM Mono',monospace;">—</span></div>
         <div class="info-row"><span class="lbl">Structure</span><span id="structureLabel" style="color:var(--blue2);font-family:'DM Mono',monospace;">—</span></div>
-        <button id="genTeamsBtn" class="btn btn-gold btn-block btn-lg mt-12" onclick="generateTeams()" style="display:none">⚔ Generate Teams &amp; Draw</button>
-        <div id="genTeamsNote" style="display:none;text-align:center;font-size:12px;color:var(--muted);padding:10px 0 2px;">Committee will generate and draw teams</div>
+        <div id="genTeamsArea" style="display:none;margin-top:12px;">
+          <button id="genTeamsBtn" class="btn btn-gold btn-block btn-lg" onclick="tryGenerateTeams()">👥 Generate Teams</button>
+          <div id="genTeamsDoneNote" style="display:none;background:rgba(26,122,74,.12);border:1px solid rgba(26,122,74,.3);border-radius:8px;padding:8px 12px;margin-top:8px;display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:12px;color:#2ecc71;">✓ Teams generated</span>
+              <span style="font-size:11px;color:var(--muted);cursor:pointer;text-decoration:underline;" onclick="tryRegenerateTeams()">Regenerate</span>
+            </div>
+          </div>
+        </div>
+        <div id="genDrawArea" style="display:none;margin-top:8px;">
+          <button id="genDrawBtn" class="btn btn-primary btn-block btn-lg" onclick="tryGenerateDraw()">⚔ Generate Draw</button>
+          <div id="genDrawDoneNote" style="display:none;background:rgba(26,122,74,.12);border:1px solid rgba(26,122,74,.3);border-radius:8px;padding:8px 12px;margin-top:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:12px;color:#2ecc71;">✓ Draw generated</span>
+              <span style="font-size:11px;color:var(--muted);cursor:pointer;text-decoration:underline;" onclick="tryRegenerateDraw()">Regenerate</span>
+            </div>
+          </div>
+        </div>
+        <div id="genTeamsNote" style="display:none;text-align:center;font-size:12px;color:var(--muted);padding:10px 0 2px;">Committee will generate teams and draw</div>
       </div>
 
       <div id="teamsPreview"></div>
@@ -825,6 +842,30 @@ select option{background:var(--navy2);}
   </div>
 </div>
 
+<!-- REGENERATE OVERRIDE (PIN 8888) -->
+<div class="modal-overlay" id="overrideModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="overrideModalTitle">Admin Override</div>
+    <div style="background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+      <div style="font-size:13px;color:#e74c3c;font-weight:500;margin-bottom:4px;">⚠ Warning</div>
+      <div id="overrideWarningText" style="font-size:12px;color:var(--muted);line-height:1.5;"></div>
+    </div>
+    <p class="text-muted" style="margin-bottom:8px;font-size:13px;">Enter admin override code to proceed:</p>
+    <div class="pin-row">
+      <input class="pin-digit" id="ovPin0" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('ovPin',0)" onkeydown="pinKey3(event,'ovPin',0)">
+      <input class="pin-digit" id="ovPin1" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('ovPin',1)" onkeydown="pinKey3(event,'ovPin',1)">
+      <input class="pin-digit" id="ovPin2" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('ovPin',2)" onkeydown="pinKey3(event,'ovPin',2)">
+      <input class="pin-digit" id="ovPin3" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('ovPin',3)" onkeydown="pinKey3(event,'ovPin',3)">
+    </div>
+    <div id="overridePinError" style="color:#e74c3c;font-size:12px;text-align:center;min-height:16px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('overrideModal')">Cancel</button>
+      <button class="btn btn-danger btn-block" onclick="confirmOverride()">Override &amp; Regenerate</button>
+    </div>
+  </div>
+</div>
+
 <!-- PISTE EDIT (referee/committee) -->
 <div class="modal-overlay" id="pisteEditModal">
   <div class="modal">
@@ -863,6 +904,7 @@ let myFencerId = null;
 let swapContext = null;
 let boutEditContext = null;
 let pisteEditMatchId = null;
+let overridePending = null; // 'teams' | 'draw'
 
 // Expose to window so Firebase ES module can access
 window._S = S;
@@ -1331,7 +1373,7 @@ function updateGenCard() {
   const n = S.fencers.filter(f => !f.bailed && f.name.trim()).length;
   const gc = document.getElementById('genCard');
   const isCom = S.role === 'committee';
-  if (n >= 4) {
+  if (n >= 6) {
     gc.style.display = 'block';
     const numTeams = calcTeamCount(n);
     const fmt = calcFormat(numTeams);
@@ -1346,16 +1388,55 @@ function updateGenCard() {
     document.getElementById('formatLabel').textContent = `${fmt.points} pts · ${fmt.bouts} bouts${numTeams<=3?' (45pts — small group!)':''}`;
     document.getElementById('structureLabel').innerHTML =
       `${fmt.structure} &nbsp;<span style="${timeColour};font-size:11px;">~${estMin} min</span>`;
-    const genBtn = document.getElementById('genTeamsBtn');
-    if (genBtn) genBtn.style.display = isCom ? 'flex' : 'none';
-    const genNote = document.getElementById('genTeamsNote');
-    if (genNote) genNote.style.display = isCom ? 'none' : 'block';
+
+    const teamsExist = S.teams.length > 0;
+    const drawExists = S.matches.length > 0;
+
+    if (isCom) {
+      // Show generate teams area always
+      const ta = document.getElementById('genTeamsArea');
+      if (ta) ta.style.display = 'block';
+      // Teams done note
+      const tdn = document.getElementById('genTeamsDoneNote');
+      const tb = document.getElementById('genTeamsBtn');
+      if (teamsExist) {
+        if (tdn) { tdn.style.display = 'block'; }
+        if (tb) tb.style.display = 'none';
+      } else {
+        if (tdn) tdn.style.display = 'none';
+        if (tb) tb.style.display = 'flex';
+      }
+      // Show generate draw area only after teams exist
+      const da = document.getElementById('genDrawArea');
+      if (da) da.style.display = teamsExist ? 'block' : 'none';
+      // Draw done note
+      const ddn = document.getElementById('genDrawDoneNote');
+      const db = document.getElementById('genDrawBtn');
+      if (drawExists) {
+        if (ddn) { ddn.style.display = 'block'; }
+        if (db) db.style.display = 'none';
+      } else {
+        if (ddn) ddn.style.display = 'none';
+        if (db) db.style.display = teamsExist ? 'flex' : 'none';
+      }
+      const genNote = document.getElementById('genTeamsNote');
+      if (genNote) genNote.style.display = 'none';
+    } else {
+      // Non-committee: hide all buttons, show note
+      ['genTeamsArea','genDrawArea'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.style.display = 'none';
+      });
+      const genNote = document.getElementById('genTeamsNote');
+      if (genNote) genNote.style.display = 'block';
+    }
   } else {
     gc.style.display = 'none';
   }
-  // start btn
+
+  // Start competition button
   const sb = document.getElementById('startCompBtn');
-  if (S.teams.length && !S.started) {
+  const drawReady = S.matches.length > 0 && !S.started;
+  if (drawReady) {
     if (isCom) {
       sb.style.display = 'block';
       sb.innerHTML = `<button class="btn btn-primary btn-block btn-lg" onclick="startCompetition()">Start Competition →</button>`;
@@ -1368,6 +1449,77 @@ function updateGenCard() {
   } else {
     sb.style.display = 'none';
   }
+}
+
+// ── Generate Teams (first time) ───────────────────────────────
+function tryGenerateTeams() {
+  if (S.teams.length > 0) { tryRegenerateTeams(); return; }
+  generateTeams();
+}
+
+function tryRegenerateTeams() {
+  overridePending = 'teams';
+  document.getElementById('overrideModalTitle').textContent = '⚠ Regenerate Teams';
+  document.getElementById('overrideWarningText').textContent =
+    'This will ERASE all current teams and the draw. All match data will be lost. This cannot be undone.';
+  ['ovPin0','ovPin1','ovPin2','ovPin3'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('overridePinError').textContent = '';
+  openModal('overrideModal');
+  setTimeout(() => document.getElementById('ovPin0').focus(), 300);
+}
+
+// ── Generate Draw (first time) ───────────────────────────────
+function tryGenerateDraw() {
+  if (!S.teams.length) { showToast('Generate teams first'); return; }
+  if (S.matches.length > 0) { tryRegenerateDraw(); return; }
+  doGenerateDraw();
+}
+
+function tryRegenerateDraw() {
+  overridePending = 'draw';
+  document.getElementById('overrideModalTitle').textContent = '⚠ Regenerate Draw';
+  document.getElementById('overrideWarningText').textContent =
+    'This will ERASE the current draw and all match data. Teams are kept. This cannot be undone.';
+  ['ovPin0','ovPin1','ovPin2','ovPin3'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('overridePinError').textContent = '';
+  openModal('overrideModal');
+  setTimeout(() => document.getElementById('ovPin0').focus(), 300);
+}
+
+function doGenerateDraw() {
+  if (!S.teams.length) { showToast('Generate teams first'); return; }
+  buildBracket(S.teams.length);
+  // Reinitialise bouts for RR matches
+  S.matches.filter(m => m.phase === 'rr').forEach(m => initBouts(m));
+  pushState();
+  updateGenCard();
+  renderTeamsPreview();
+  showToast('Draw generated ✓');
+}
+
+function confirmOverride() {
+  const pin = [0,1,2,3].map(i => document.getElementById('ovPin'+i).value).join('');
+  if (pin !== '8888') {
+    document.getElementById('overridePinError').textContent = 'Incorrect override code';
+    ['ovPin0','ovPin1','ovPin2','ovPin3'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('ovPin0').focus();
+    return;
+  }
+  closeModal('overrideModal');
+  if (overridePending === 'teams') {
+    // Reset everything and regenerate
+    S.teams = []; S.matches = []; S.bracket = []; S.started = false;
+    tId = 1; mId = 1;
+    generateTeams();
+    showToast('Teams regenerated ✓');
+  } else if (overridePending === 'draw') {
+    // Keep teams, reset matches only
+    S.matches = []; S.bracket = []; S.started = false;
+    mId = 1;
+    doGenerateDraw();
+    showToast('Draw regenerated ✓');
+  }
+  overridePending = null;
 }
 
 // ════════════════════════════════════════════════
@@ -1532,10 +1684,11 @@ function generateTeams() {
     t.fencers.push(fid);
   });
 
-  buildBracket(numTeams);
+  // Teams are done — draw must be generated separately
   pushState();
   renderTeamsPreview();
   updateGenCard();
+  showToast('Teams generated ✓ — now generate the draw');
 }
 
 // ── Bracket builder ───────────────────────────────────────────────
