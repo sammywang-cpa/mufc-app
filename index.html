@@ -1687,7 +1687,7 @@ function renderScoring() {
       <div class="section-head" style="margin-top:4px;">Bout Breakdown</div>
       ${(()=>{
         const myName = myFencerId ? S.fencers.find(f=>f.id===myFencerId)?.name : null;
-        return m.bouts.map(b=>{
+        return m.bouts.map((b, bi)=>{
           const isMine = myName && (b.fencerA===myName || b.fencerB===myName);
           const boutCards = (b.cards||[]).map(c=>
             `<span title="${c.type} card">${c.type==='yellow'?'🟨':'🟥'}${c.side}</span>`
