@@ -825,6 +825,17 @@ select option{background:var(--navy2);}
   </div>
 </div>
 
+<!-- PISTE EDIT (referee/committee) -->
+<div class="modal-overlay" id="pisteEditModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Change Piste</div>
+    <p class="text-muted" style="margin-bottom:14px;" id="pisteEditSub"></p>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px;" id="pisteEditBtns"></div>
+    <button class="btn btn-ghost btn-block" onclick="closeModal('pisteEditModal')">Cancel</button>
+  </div>
+</div>
+
 <div class="toast hidden" id="toast"></div>
 
 <script>
@@ -851,6 +862,7 @@ let pendingPinRole = null;
 let myFencerId = null;
 let swapContext = null;
 let boutEditContext = null;
+let pisteEditMatchId = null;
 
 // Expose to window so Firebase ES module can access
 window._S = S;
@@ -1834,7 +1846,10 @@ function renderMatchCard(m, isPriv) {
     : '';
   return `<div class="match-card ${sc}" style="${myBorder}${clickable?'cursor:pointer':''}" onclick="${clickable?'openScoring('+m.id+')':''}">
     <div class="match-header">
-      <span class="match-meta">Piste ${m.piste}</span>
+      <span class="match-meta">${isPriv
+        ? `<span style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,.3);padding-bottom:1px;" onclick="event.stopPropagation();openPisteEdit(${m.id})">Piste ${m.piste} ✎</span>`
+        : `Piste ${m.piste}`
+      }</span>
       <div style="display:flex;gap:5px;align-items:center;">${myBadge}${sb}<span class="match-meta">${m.target}pts</span></div>
     </div>
     <div class="match-teams">
@@ -1910,7 +1925,12 @@ function renderScoring() {
     <div style="padding-bottom:8px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <button class="btn btn-ghost btn-sm" onclick="showTab('matches')">← Back</button>
-        <span class="match-meta" style="flex:1;text-align:center">Piste ${m.piste}</span>
+        <span class="match-meta" style="flex:1;text-align:center">
+          ${isPriv
+            ? `<span style="cursor:pointer;border-bottom:1px dashed var(--muted);padding-bottom:1px;" onclick="openPisteEdit(${m.id})" title="Tap to change piste">Piste ${m.piste} ✎</span>`
+            : `Piste ${m.piste}`
+          }
+        </span>
         <span class="badge ${m.status==='live'?'badge-gold':m.status==='complete'?'badge-green':'badge-muted'}">${m.status.toUpperCase()}</span>
       </div>
       ${(()=>{
@@ -2269,6 +2289,36 @@ function confirmMoveFencer() {
 }
 
 
+// ── Piste edit (referee / committee) ─────────────────────────
+function openPisteEdit(matchId) {
+  if (S.role !== 'referee' && S.role !== 'committee') return;
+  const m = S.matches.find(x => x.id === matchId);
+  if (!m) return;
+  const tA = S.teams.find(t => t.id === m.teamA);
+  const tB = S.teams.find(t => t.id === m.teamB);
+  document.getElementById('pisteEditSub').textContent =
+    `${tA?.name || '?'} vs ${tB?.name || '?'} — currently Piste ${m.piste}`;
+  document.getElementById('pisteEditBtns').innerHTML = [1,2,3,4,5].map(p =>
+    `<button class="btn ${m.piste===p?'btn-gold':'btn-ghost'} btn-sm"
+      style="font-size:18px;font-family:'Bebas Neue',sans-serif;padding:14px 0;"
+      onclick="savePisteEdit(${matchId},${p})">${p}</button>`
+  ).join('');
+  openModal('pisteEditModal');
+}
+
+function savePisteEdit(matchId, piste) {
+  const m = S.matches.find(x => x.id === matchId);
+  if (!m) return;
+  m.piste = piste;
+  closeModal('pisteEditModal');
+  pushState();
+  renderScoring();
+  renderMatches();
+  renderBracket();
+  showToast(`→ Piste ${piste}`);
+}
+
+// ── Bout score editing (referee / committee) ─────────────────────
 function openBoutEdit(matchId, boutIdx) {
   if (S.role!=='referee'&&S.role!=='committee') return;
   const m = S.matches.find(x=>x.id===matchId);
