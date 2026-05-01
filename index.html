@@ -637,11 +637,15 @@ select option{background:var(--navy2);}
     <div style="margin-bottom:14px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--gold);margin-bottom:6px;">COMPETITION FORMAT</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.6;">
-        Teams relay event — Foil. Two teams fence in relay. Fencers rotate each bout. First team to reach the match target wins.
+        Teams foil competition. Each team has 3 fencers (4 if necessary — no one left out). Teams are grouped by the organisers.
+        <br><br>
+        <span style="color:var(--white);font-weight:500;">Phase 1 — Round Robin:</span> Every team fences every other team.<br>
+        <span style="color:var(--white);font-weight:500;">Phase 2 — Semi-Finals:</span> The 4 teams with the highest points advance. 1st vs 4th, 2nd vs 3rd.<br>
+        <span style="color:var(--white);font-weight:500;">Phase 3 — Grand Final:</span> The two semi-final winners compete for 1st place.
+        <br><br>
+        Each match is fenced in relay — fencers rotate each bout. A bout ends when the running total reaches the milestone <span style="color:var(--white);">or 3 minutes passes</span>.
         <br><br>
         <span style="color:var(--white);font-weight:500;">30 pts</span> (6+ teams) — 6 bouts &nbsp;|&nbsp; <span style="color:var(--white);font-weight:500;">45 pts</span> (≤4 teams) — 9 bouts
-        <br><br>
-        Each bout has a <span style="color:var(--white);font-weight:500;">5-point target milestone</span>. A bout ends when either the running total hits that milestone <span style="color:var(--white);font-weight:500;">or 3 minutes passes</span> — whichever comes first. Scores carry over into the next bout.
       </div>
 
       <div style="margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;">
@@ -1300,7 +1304,7 @@ function updateGenCard() {
     document.getElementById('teamSizeInfo').textContent =
       `${n} fencers → ${numTeams} teams (3–4 per team, no one left out)`;
     document.getElementById('formatLabel').textContent = `${fmt.points} pts · ${fmt.bouts} bouts`;
-    document.getElementById('structureLabel').textContent = `DE · ${Math.ceil(Math.log2(numTeams))} rounds`;
+    document.getElementById('structureLabel').textContent = `RR → Top 4 → Semi-Finals → Final`;
     const genBtn = document.getElementById('genTeamsBtn');
     if (genBtn) genBtn.style.display = isCom ? 'flex' : 'none';
     const genNote = document.getElementById('genTeamsNote');
@@ -1422,56 +1426,98 @@ function generateTeams() {
 function buildBracket(numTeams) {
   S.matches = []; S.bracket = [];
   const PISTES = [1,2,3,4,5];
+  let pi = 0;
 
-  // Round 1: pair teams by closest worth (snake-seed: 1v2, 3v4, etc after sorting by worth)
-  // Sort teams by worth descending, then pair adjacent: closest-worth opponents
-  const sortedByWorth = [...S.teams].sort((a, b) => teamWorth(b) - teamWorth(a));
-  // Pair closest: [0,1], [2,3], [4,5]… — adjacent teams have most similar worth
-  const r1Teams = [];
-  for (let i = 0; i < sortedByWorth.length; i += 2) {
-    if (i + 1 < sortedByWorth.length) {
-      r1Teams.push([sortedByWorth[i], sortedByWorth[i+1]]);
-    } else {
-      r1Teams.push([sortedByWorth[i], null]); // bye
+  // ── PHASE 1: Round Robin — every team plays every other team ──────
+  const rrMatchIds = [];
+  for (let i = 0; i < S.teams.length; i++) {
+    for (let j = i+1; j < S.teams.length; j++) {
+      const m = {
+        id: mId++, round: 'rr', piste: PISTES[pi % 5],
+        teamA: S.teams[i].id, teamB: S.teams[j].id,
+        bouts: [], scoreA: 0, scoreB: 0, target: S.format.points,
+        status: 'pending', winner: null, phase: 'rr'
+      };
+      S.matches.push(m); rrMatchIds.push(m.id); pi++;
     }
   }
+  S.bracket.push({ round: 'rr', label: 'Round Robin', matchIds: rrMatchIds });
 
-  let round = 1;
-  // Build round 1 from paired list
-  const r1MatchIds = []; const r1Next = []; let pi = 0;
-  r1Teams.forEach(([tA, tB]) => {
-    if (!tB) { r1Next.push({...tA, isBye:true}); return; }
-    const m = { id:mId++, round:1, piste:PISTES[pi%5],
-      teamA:tA.id, teamB:tB.id,
-      bouts:[], scoreA:0, scoreB:0, target:S.format.points,
-      status:'pending', winner:null };
-    S.matches.push(m); r1MatchIds.push(m.id);
-    r1Next.push({ id:'TBD_'+m.id, fromMatch:m.id }); pi++;
-  });
-  S.bracket.push({ round:1, label:roundLabel(1, numTeams), matchIds:r1MatchIds });
+  // ── PHASE 2: Semi-finals (top 4 — TBD until RR complete) ─────────
+  const sf1 = { id: mId++, round: 'sf', piste: PISTES[pi%5], teamA: 'TBD_sf1a', teamB: 'TBD_sf1b',
+    bouts: [], scoreA: 0, scoreB: 0, target: S.format.points, status: 'waiting', winner: null, phase: 'sf' };
+  const sf2 = { id: mId++, round: 'sf', piste: PISTES[(pi+1)%5], teamA: 'TBD_sf2a', teamB: 'TBD_sf2b',
+    bouts: [], scoreA: 0, scoreB: 0, target: S.format.points, status: 'waiting', winner: null, phase: 'sf' };
+  S.matches.push(sf1, sf2);
+  S.bracket.push({ round: 'sf', label: 'Semi-Finals (Top 4)', matchIds: [sf1.id, sf2.id] });
 
-  // Build subsequent rounds (TBD slots, shuffle for fairness)
-  let roundTeams = r1Next; round = 2;
-  while (roundTeams.length > 1) {
-    const roundMatchIds = []; const next = []; pi = 0;
-    for (let i = 0; i < roundTeams.length; i+=2) {
-      if (i+1 >= roundTeams.length) { next.push({...roundTeams[i],isBye:true}); continue; }
-      const m = { id:mId++, round, piste:PISTES[pi%5],
-        teamA:roundTeams[i].id, teamB:roundTeams[i+1].id,
-        bouts:[], scoreA:0, scoreB:0, target:S.format.points,
-        status:'waiting', winner:null };
-      S.matches.push(m); roundMatchIds.push(m.id);
-      next.push({ id:'TBD_'+m.id, fromMatch:m.id }); pi++;
+  // ── PHASE 3: Grand Final ──────────────────────────────────────────
+  const gf = { id: mId++, round: 'gf', piste: PISTES[(pi+2)%5], teamA: 'TBD_gf_a', teamB: 'TBD_gf_b',
+    bouts: [], scoreA: 0, scoreB: 0, target: S.format.points, status: 'waiting', winner: null, phase: 'gf' };
+  S.matches.push(gf);
+  S.bracket.push({ round: 'gf', label: 'Grand Final', matchIds: [gf.id] });
+}
+
+// Called after every RR or SF match completes
+function advanceBracket(m) {
+  if (m.phase === 'rr') {
+    // Check if all RR matches are done
+    const rrMatches = S.matches.filter(x => x.phase === 'rr');
+    const allRRDone = rrMatches.every(x => x.status === 'complete');
+    if (allRRDone) seedSemiFinals();
+  } else if (m.phase === 'sf') {
+    // Check if both SFs done → seed final
+    const sfMatches = S.matches.filter(x => x.phase === 'sf');
+    if (sfMatches.every(x => x.status === 'complete')) seedFinal();
+  }
+  // gf has no advancement
+}
+
+function getRRStandings() {
+  return S.teams.map(t => {
+    const ms = S.matches.filter(x => x.phase==='rr' && (x.teamA===t.id||x.teamB===t.id) && x.status==='complete');
+    const wins = ms.filter(x => (x.winner==='A'&&x.teamA===t.id)||(x.winner==='B'&&x.teamB===t.id)).length;
+    const scored = ms.reduce((s,x) => s+(x.teamA===t.id?x.scoreA:x.scoreB), 0);
+    const conceded = ms.reduce((s,x) => s+(x.teamA===t.id?x.scoreB:x.scoreA), 0);
+    return { team: t, wins, played: ms.length, scored, conceded, diff: scored-conceded };
+  }).sort((a,b) => b.wins-a.wins || b.diff-a.diff || b.scored-a.scored);
+}
+
+function seedSemiFinals() {
+  const standings = getRRStandings();
+  const top4 = standings.slice(0, 4);
+  // 1st vs 4th, 2nd vs 3rd
+  const sfMatches = S.matches.filter(x => x.phase === 'sf');
+  if (sfMatches.length < 2) return;
+  sfMatches[0].teamA = top4[0].team.id;
+  sfMatches[0].teamB = top4[3]?.team.id || 'TBD';
+  sfMatches[1].teamA = top4[1]?.team.id || 'TBD';
+  sfMatches[1].teamB = top4[2]?.team.id || 'TBD';
+  sfMatches.forEach(m => {
+    if (S.teams.find(t=>t.id===m.teamA) && S.teams.find(t=>t.id===m.teamB)) {
+      m.status = 'pending'; initBouts(m);
     }
-    S.bracket.push({ round, label:roundLabel(round, roundTeams.length), matchIds:roundMatchIds });
-    roundTeams = next; round++;
+  });
+}
+
+function seedFinal() {
+  const sfMatches = S.matches.filter(x => x.phase === 'sf');
+  const gf = S.matches.find(x => x.phase === 'gf');
+  if (!gf) return;
+  const winners = sfMatches.map(m => m.winner==='A' ? m.teamA : m.teamB);
+  gf.teamA = winners[0] || 'TBD';
+  gf.teamB = winners[1] || 'TBD';
+  if (S.teams.find(t=>t.id===gf.teamA) && S.teams.find(t=>t.id===gf.teamB)) {
+    gf.status = 'pending'; initBouts(gf);
   }
 }
 
 function roundLabel(r, n) {
-  if(n===2) return 'Grand Final';
-  if(n===4) return 'Semi-Finals';
-  if(n===8) return 'Quarter-Finals';
+  if (r === 'gf') return 'Grand Final';
+  if (r === 'sf') return 'Semi-Finals';
+  if (r === 'rr') return 'Round Robin';
+  if (n===2) return 'Grand Final';
+  if (n===4) return 'Semi-Finals';
   return `Round ${r}`;
 }
 
@@ -2326,27 +2372,55 @@ function resetTimer(matchId,boutIdx) {
 function renderBracket() {
   const el = document.getElementById('bracketContent');
   if (!S.started||!S.bracket.length) { el.innerHTML=emptyState('🏆','Start competition to see bracket'); return; }
-  const finalBr = S.bracket[S.bracket.length-1];
-  const finalM = finalBr?S.matches.find(m=>m.id===finalBr.matchIds[0]):null;
-  let html = '';
-  if (finalM?.status==='complete') {
-    const w = S.teams.find(t=>t.id===(finalM.winner==='A'?finalM.teamA:finalM.teamB));
-    html = `<div class="champion-banner"><div style="font-size:44px;">🥇</div><div style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:3px;color:var(--gold);margin:4px 0 2px;">Champion</div><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;">${w?.name}</div></div>`;
-  }
+  const gfMatch = S.matches.find(m=>m.phase==='gf');
   const isCom = S.role==='committee';
   const myTeam = myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId)) : null;
-  S.bracket.forEach(br=>{
-    html+=`<div style="margin-bottom:18px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;">${br.label}</div>`;
-    br.matchIds.forEach(mid=>{
-      const m=S.matches.find(x=>x.id===mid); if(!m) return;
+  let html = '';
+
+  // Champion banner
+  if (gfMatch?.status==='complete') {
+    const w = S.teams.find(t=>t.id===(gfMatch.winner==='A'?gfMatch.teamA:gfMatch.teamB));
+    html = `<div class="champion-banner"><div style="font-size:44px;">🥇</div><div style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:3px;color:var(--gold);margin:4px 0 2px;">Champion</div><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;">${w?.name}</div></div>`;
+  }
+
+  // ── RR standings table (compact) ─────────────────────────────────
+  const rrDone = S.matches.filter(m=>m.phase==='rr'&&m.status==='complete').length;
+  const rrTotal = S.matches.filter(m=>m.phase==='rr').length;
+  const standings = getRRStandings();
+  html += `<div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;">Round Robin <span style="font-size:11px;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:400;">${rrDone}/${rrTotal} matches played</span></div>`;
+  html += `<div style="background:var(--navy2);border-radius:var(--r);margin-bottom:16px;overflow:hidden;">`;
+  html += `<div style="display:grid;grid-template-columns:24px 1fr 28px 28px 36px;padding:5px 10px;font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">
+    <span>#</span><span>Team</span><span style="text-align:center">W</span><span style="text-align:center">P</span><span style="text-align:right">±</span></div>`;
+  standings.forEach((s,i)=>{
+    const isMe = myTeam && s.team.id === myTeam.id;
+    const advanceBadge = rrDone===rrTotal && i<4 ? `<span class="badge badge-green" style="font-size:9px;margin-left:4px;">→ SF</span>` : '';
+    html += `<div style="display:grid;grid-template-columns:24px 1fr 28px 28px 36px;padding:7px 10px;align-items:center;${i%2===0?'background:rgba(255,255,255,.02)':''}${isMe?';outline:1px solid rgba(201,162,39,.3);background:rgba(201,162,39,.06)':''};">
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:${i<4?'var(--gold)':'var(--muted)'};">${i+1}</span>
+      <span style="font-size:13px;font-weight:500;${isMe?'color:var(--gold)':''}">${s.team.name}${isMe?' ★':''}${advanceBadge}</span>
+      <span style="text-align:center;font-weight:500;">${s.wins}</span>
+      <span style="text-align:center;color:var(--muted);font-size:12px;">${s.played}</span>
+      <span style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;color:${s.diff>=0?'#2ecc71':'#e74c3c'}">${s.diff>0?'+':''}${s.diff}</span>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // ── DE rounds (SF + GF) ────────────────────────────────────────
+  const dePhases = [
+    { phase: 'sf', label: 'Semi-Finals (1v4, 2v3)' },
+    { phase: 'gf', label: 'Grand Final' }
+  ];
+  dePhases.forEach(({phase, label}) => {
+    const phaseMatches = S.matches.filter(m=>m.phase===phase);
+    if (!phaseMatches.length) return;
+    html += `<div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;">${label}</div>`;
+    phaseMatches.forEach(m => {
       const tA=S.teams.find(t=>t.id===m.teamA), tB=S.teams.find(t=>t.id===m.teamB);
       const nA=tA?.name||(m.teamA?.toString().startsWith('TBD')?'TBD':'?');
       const nB=tB?.name||(m.teamB?.toString().startsWith('TBD')?'TBD':'?');
       const sc=m.status==='live'?'live':m.status==='complete'?'complete':'';
       const isMyMatch = myTeam && (myTeam.id===m.teamA || myTeam.id===m.teamB);
-      // Committee reassign button — only for pending/waiting matches (not live/complete)
       const canReassign = isCom && (m.status==='pending'||m.status==='waiting');
-      html+=`<div class="bracket-match ${sc}" style="${isMyMatch?'border-color:var(--gold);':''}">
+      html+=`<div class="bracket-match ${sc}" style="${isMyMatch?'border-color:var(--gold);':''}margin-bottom:8px;">
         <div class="bracket-team-row ${m.status==='complete'&&m.winner==='A'?'winner':''}">
           <span class="seed">A</span>
           <span class="bname" style="${myTeam&&myTeam.id===m.teamA?'color:var(--gold);font-weight:600;':''}">${nA}${myTeam&&myTeam.id===m.teamA?' ★':''}</span>
@@ -2364,7 +2438,6 @@ function renderBracket() {
         </div>
       </div>`;
     });
-    html+='</div>';
   });
   el.innerHTML=html;
 }
@@ -2375,27 +2448,24 @@ function renderBracket() {
 function renderStandings() {
   const el=document.getElementById('standingsContent');
   if (!S.started){el.innerHTML=emptyState('📊','Start competition to see standings');return;}
-  const stats=S.teams.map(t=>{
-    const ms=S.matches.filter(m=>(m.teamA===t.id||m.teamB===t.id)&&m.status==='complete');
-    const wins=ms.filter(m=>(m.winner==='A'&&m.teamA===t.id)||(m.winner==='B'&&m.teamB===t.id)).length;
-    const scored=ms.reduce((s,m)=>s+(m.teamA===t.id?m.scoreA:m.scoreB),0);
-    const conc=ms.reduce((s,m)=>s+(m.teamA===t.id?m.scoreB:m.scoreA),0);
-    const live=S.matches.find(m=>(m.teamA===t.id||m.teamB===t.id)&&m.status==='live');
-    return{team:t,wins,played:ms.length,scored,conc,diff:scored-conc,live};
-  });
-  stats.sort((a,b)=>b.wins-a.wins||b.diff-a.diff||b.scored-a.scored);
-  let html=`<div class="section-head">Live Standings</div>
+  const stats = getRRStandings();
+  const rrDone = S.matches.filter(m=>m.phase==='rr'&&m.status==='complete').length;
+  const rrTotal = S.matches.filter(m=>m.phase==='rr').length;
+  const phase = rrDone < rrTotal ? 'Round Robin' :
+    S.matches.some(m=>m.phase==='sf'&&m.status!=='complete') ? 'Semi-Finals' :
+    S.matches.some(m=>m.phase==='gf'&&m.status!=='complete') ? 'Grand Final' : 'Complete';
+  let html=`<div class="section-head">Standings</div>
     <div class="card" style="padding:10px 12px;margin-bottom:12px;">
-      <div class="info-row"><span class="lbl">Format</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">${S.format?.points}pts · DE</span></div>
-      <div class="info-row"><span class="lbl">Active round</span><span style="color:var(--blue2);font-family:'DM Mono',monospace;">${S.bracket.find(b=>b.matchIds.some(mid=>S.matches.find(m=>m.id===mid&&(m.status==='live'||m.status==='pending'))))?.label||'—'}</span></div>
+      <div class="info-row"><span class="lbl">Format</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">${S.format?.points}pts · RR → Top 4 → Final</span></div>
+      <div class="info-row"><span class="lbl">Phase</span><span style="color:var(--blue2);font-family:'DM Mono',monospace;">${phase}</span></div>
+      <div class="info-row"><span class="lbl">RR progress</span><span style="font-family:'DM Mono',monospace;">${rrDone} / ${rrTotal} matches</span></div>
       <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;gap:14px;font-size:11px;color:var(--muted);">
         <span><span style="color:var(--white);font-weight:500;">W</span> — Wins</span>
         <span><span style="color:var(--white);font-weight:500;">P</span> — Matches played</span>
-        <span><span style="color:var(--white);font-weight:500;">±</span> — Point differential (scored − conceded)</span>
+        <span><span style="color:var(--white);font-weight:500;">±</span> — Point differential</span>
       </div>
     </div>`;
   const myTeamId = myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId))?.id : null;
-  // Assign shared ranks for tied teams
   const ranks = stats.map((s, i) => {
     if (i === 0) return 1;
     const prev = stats[i-1];
@@ -2405,10 +2475,13 @@ function renderStandings() {
   stats.forEach((s,i)=>{
     const rank = ranks[i];
     const isMe = s.team.id === myTeamId;
+    const live = S.matches.find(m=>(m.teamA===s.team.id||m.teamB===s.team.id)&&m.status==='live');
+    const advBadge = rrDone===rrTotal && i<4 ? `<span class="badge badge-green" style="font-size:9px;margin-left:4px;">→ SF</span>` : '';
     html+=`<div class="standings-row" style="${isMe?'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.25);border-radius:8px;':''}">
-      <span class="st-rank ${rank<=2?'top':''}">${rank}</span>
-      <div style="flex:1"><div style="font-size:13px;font-weight:500;${isMe?'color:var(--gold);':''}">${s.team.name}${isMe?' ★':''}</div>
-        ${s.live?`<div style="font-size:10px;color:var(--gold);">● LIVE Piste ${s.live.piste}</div>`:''}
+      <span class="st-rank ${rank<=4?'top':''}">${rank}</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500;${isMe?'color:var(--gold);':''}">${s.team.name}${isMe?' ★':''}${advBadge}</div>
+        ${live?`<div style="font-size:10px;color:var(--gold);">● LIVE Piste ${live.piste}</div>`:''}
       </div>
       <div class="st-stats">
         <span><span class="val">${s.wins}</span><span class="lbl">W</span></span>
