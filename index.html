@@ -715,11 +715,14 @@ select option{background:var(--navy2);}
     <div style="margin-bottom:14px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--blue2);margin-bottom:6px;">🤺 COMPETITOR</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.6;">
-        Register once with name, level, and a 4-digit PIN. Sign in from any device.<br>
-        • Edit your own team name<br>
+        Committee pre-registers your name before the event. On competition day:<br><br>
+        <span style="color:var(--white);font-weight:500;">First time →</span> tap <em>Check in</em>, select your name from the list, set a 4-digit PIN.<br>
+        <span style="color:var(--white);font-weight:500;">Already checked in →</span> tap <em>Log in</em>, select your name, enter your PIN.<br><br>
+        Once logged in:<br>
         • View all matches, bracket, and standings<br>
         • Your bouts are highlighted ★ in gold<br>
-        • Tap any live or completed match to view bout details
+        • Tap any match to view bout details and scores<br>
+        • Edit your team name
       </div>
     </div>
 
@@ -743,12 +746,13 @@ select option{background:var(--navy2);}
       <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--purple2);margin-bottom:6px;">🛡 COMMITTEE — PIN required</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.6;">
         Full override — all referee functions, plus:<br>
-        • Generate teams and start the competition<br>
-        • Edit event info (date, venue, time)<br>
+        • <span style="color:var(--white);">Register fencers</span> before the event (name + level) — competitors cannot add themselves<br>
         • Remove any fencer from the register<br>
+        • Reset a competitor's check-in if they used the wrong name<br>
+        • Generate teams and draw, start the competition<br>
+        • Edit event info (date, venue, time)<br>
         • Edit bout scores even after a winner is declared<br>
-        • Change individual competitor PINs<br>
-        • Clear all competitor data<br>
+        • Change individual competitor PINs or clear all competitor data<br>
         • Change referee and committee PINs
       </div>
     </div>
@@ -1252,12 +1256,27 @@ function calcFormat(n) {
 // ════════════════════════════════════════════════
 // FENCERS
 // ════════════════════════════════════════════════
-function addFencer() {
-  const newF = { id: fId++, name: '', level: 'beginner', bailed: false };
+function addFencer() { committeeAddFencer(); } // alias
+
+function committeeAddFencer() {
+  if (S.role !== 'committee') { showToast('Committee only'); return; }
+  const nameEl = document.getElementById('addFencerName');
+  const levelEl = document.getElementById('addFencerLevel');
+  const name = nameEl.value.trim();
+  const level = levelEl.value;
+  if (!name) { showToast('Enter a name first'); nameEl.focus(); return; }
+  // Check for duplicates
+  if (S.fencers.find(f => f.name.toLowerCase() === name.toLowerCase())) {
+    showToast('Name already in list'); nameEl.focus(); return;
+  }
+  const newF = { id: fId++, name, level, bailed: false };
   S.fencers.push(newF);
-  // If competitor role, claim this row as theirs
-  if (S.role === 'competitor' && !myFencerId) myFencerId = newF.id;
+  nameEl.value = '';
+  levelEl.value = 'beginner';
+  nameEl.focus();
+  pushState();
   renderFencers();
+  showToast(`${name} added ✓`);
 }
 
 function removeFencer(id) {
@@ -3047,11 +3066,25 @@ function renderStandings() {
   const myTeamId = myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId))?.id : null;
   const medals = {1:'🥇',2:'🥈',3:'🥉'};
   const roundNames = {'r1':'R1','r2':'R2','r3':'QF','r4':'R4','sf':'SF','bronze':'Bronze','gf':'Final'};
+  // Pre-compute shared ranks: two non-placed teams share a rank if deepest + diff + scored all equal
+  const computedRanks = [];
+  for (let i = 0; i < stats.length; i++) {
+    const s = stats[i];
+    if (s.placement) { computedRanks.push(s.placement); continue; }
+    if (i === 0 || stats[i-1].placement) { computedRanks.push(i + 1); continue; }
+    const prev = stats[i-1];
+    const tied = !prev.placement &&
+      s.deepest === prev.deepest &&
+      s.diff    === prev.diff &&
+      s.scored  === prev.scored;
+    computedRanks.push(tied ? computedRanks[i-1] : i + 1);
+  }
   stats.forEach((s,i)=>{
     const isMe = s.team.id === myTeamId;
     const live = S.matches.find(m=>(m.teamA===s.team.id||m.teamB===s.team.id)&&m.status==='live');
     const medal = medals[s.placement] || '';
-    const rankDisp = s.placement ? `${medal}` : `${i+1}`;
+    const rank = computedRanks[i];
+    const rankDisp = s.placement ? `${medal}` : `${rank}`;
     const rankColour = s.placement===1?'var(--gold)':s.placement===2?'#b0b8c0':s.placement===3?'#cd7f32':'var(--muted)';
     const deepLabel = roundNames[s.deepest] || '';
     html+=`<div class="standings-row" style="${isMe?'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.25);border-radius:8px;':''}">
