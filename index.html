@@ -84,7 +84,6 @@ onValue(ref(db, REGISTRY_KEY), snap => {
   S.compRegistry = Array.isArray(data) ? data : Object.values(data);
   // Ensure fencers from registry are in local fencer list
   S.compRegistry.forEach(r => {
-    // Guard: check by both id and name to prevent duplicates
     if (!S.fencers.find(f => f.id === r.id || f.name.toLowerCase() === r.name.toLowerCase())) {
       S.fencers.push({ id: r.id, name: r.name, level: r.level, bailed: false });
     }
@@ -254,14 +253,14 @@ select option{background:var(--navy2);}
 .timer-display.warning{color:var(--gold);}
 .timer-display.danger{color:#e74c3c;}
 .score-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;}
-.score-btn{background:var(--navy2);border:1px solid var(--border);border-radius:var(--r);padding:14px 10px;text-align:center;cursor:pointer;transition:all .12s;user-select:none;-webkit-user-select:none;}
+.score-btn{background:var(--navy2);border:2px solid var(--border);border-radius:var(--r);padding:22px 10px;text-align:center;cursor:pointer;transition:all .12s;user-select:none;-webkit-user-select:none;}
 .score-btn:active{transform:scale(.95);}
-.score-btn.team-a{border-color:rgba(201,162,39,.4);}
-.score-btn.team-a:active{background:rgba(201,162,39,.15);}
-.score-btn.team-b{border-color:rgba(46,125,212,.4);}
-.score-btn.team-b:active{background:rgba(46,125,212,.15);}
-.score-btn-label{font-size:10px;color:var(--muted);margin-bottom:3px;}
-.score-btn-name{font-size:14px;font-weight:600;}
+.score-btn.team-a{border-color:rgba(201,162,39,.7);background:rgba(201,162,39,.06);}
+.score-btn.team-a:active{background:rgba(201,162,39,.25);transform:scale(.97);}
+.score-btn.team-b{border-color:rgba(46,125,212,.7);background:rgba(46,125,212,.06);}
+.score-btn.team-b:active{background:rgba(46,125,212,.25);transform:scale(.97);}
+.score-btn-label{font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;}
+.score-btn-name{font-size:18px;font-weight:700;margin-bottom:4px;}
 .score-btn-name.a{color:var(--gold);}
 .score-btn-name.b{color:var(--blue2);}
 
@@ -361,9 +360,22 @@ select option{background:var(--navy2);}
         <button class="btn btn-ghost btn-sm" onclick="openModal('manualModal')">📖 User Manual</button>
       </div>
 
-      <div class="section-head">Register Fencers</div>
+      <div class="section-head">Register Fencers
+        <span style="font-size:10px;font-weight:400;color:var(--muted);margin-left:6px;" id="checkinCount"></span>
+      </div>
       <div class="card">
-        <p class="text-muted" style="margin-bottom:10px;">Each person adds themselves via the Competitor role. Committee can remove anyone.</p>
+        <div id="fencerListHeader" style="display:none;margin-bottom:10px;">
+          <p class="text-muted" style="font-size:12px;margin-bottom:8px;">Add names in <strong>SURNAME, Firstname</strong> format — list sorts alphabetically.</p>
+          <div style="display:flex;gap:7px;">
+            <input type="text" id="addFencerName" placeholder="e.g. GLASSON, Sophia" style="flex:1;" onkeydown="if(event.key==='Enter')committeeAddFencer()">
+            <select id="addFencerLevel" style="width:100px;background:var(--navy3);border-radius:6px;padding:0 8px;font-size:12px;border:1px solid var(--border);">
+              <option value="beginner">Beginner</option>
+              <option value="novice">Novice</option>
+              <option value="intermediate">Int/Adv</option>
+            </select>
+            <button class="btn btn-gold btn-sm" onclick="committeeAddFencer()">+ Add</button>
+          </div>
+        </div>
         <div id="fencerList"></div>
       </div>
 
@@ -438,7 +450,7 @@ select option{background:var(--navy2);}
     <div class="modal-title">Select role</div>
     <p class="text-muted" style="margin-bottom:12px;font-size:12px;">No role? Just close this — you'll have spectator view by default.</p>
     <div style="display:flex;flex-direction:column;gap:8px;">
-      <button class="btn btn-primary btn-block btn-lg" onclick="openCompetitorFlow()">🤺 Competitor</button>
+      <button class="btn btn-primary btn-block btn-lg" onclick="openCompCheckIn()">🤺 Check in</button>
       <button class="btn btn-gold btn-block btn-lg" onclick="promptPin('referee')">⚖ Referee <span style="font-size:11px;opacity:.7;">— PIN required</span></button>
       <button class="btn btn-purple btn-block btn-lg" onclick="promptPin('committee')">🛡 Committee <span style="font-size:11px;opacity:.7;">— PIN required</span></button>
       <div id="logoutRow" style="display:none;border-top:1px solid var(--border);padding-top:8px;">
@@ -448,77 +460,56 @@ select option{background:var(--navy2);}
   </div>
 </div>
 
-<!-- COMPETITOR FLOW — choose path -->
-<div class="modal-overlay" id="compFlowModal">
+<!-- COMPETITOR CHECK-IN — select name, set PIN -->
+<div class="modal-overlay" id="compCheckInModal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title">Competitor</div>
-    <p class="text-muted" style="margin-bottom:14px;">New to this device, or returning?</p>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <button class="btn btn-primary btn-block btn-lg" onclick="openCompRegister()">+ Add yourself</button>
-      <button class="btn btn-ghost btn-block btn-lg" onclick="openCompLogin()">↩ Already registered — sign in</button>
-      <button class="btn btn-ghost btn-block btn-sm" onclick="closeModal('compFlowModal');openModal('roleModal')">← Back</button>
-    </div>
-  </div>
-</div>
-
-<!-- COMPETITOR REGISTER — new fencer -->
-<div class="modal-overlay" id="compRegModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Register yourself</div>
+    <div class="modal-title">🤺 Check In</div>
+    <p class="text-muted" style="margin-bottom:14px;font-size:13px;">Select your name from the list, then set a 4-digit PIN you'll use to log in.</p>
     <div class="form-group">
       <label>Your name</label>
-      <input type="text" id="regName" placeholder="Full name" autocomplete="off">
-    </div>
-    <div class="form-group">
-      <label>Level</label>
-      <select id="regLevel">
-        <option value="beginner">Beginner</option>
-        <option value="novice">Novice</option>
-        <option value="intermediate">Int / Advanced</option>
-      </select>
+      <select id="checkInNameSel"></select>
     </div>
     <div class="form-group">
       <label>Set your 4-digit PIN</label>
-      <p class="text-muted" style="margin-bottom:6px;font-size:11px;">You'll use this to log in from any device.</p>
       <div class="pin-row">
-        <input class="pin-digit" id="regPin0" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('reg',0)" onkeydown="pinKey3(event,'reg',0)">
-        <input class="pin-digit" id="regPin1" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('reg',1)" onkeydown="pinKey3(event,'reg',1)">
-        <input class="pin-digit" id="regPin2" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('reg',2)" onkeydown="pinKey3(event,'reg',2)">
-        <input class="pin-digit" id="regPin3" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('reg',3)" onkeydown="pinKey3(event,'reg',3)">
+        <input class="pin-digit" id="ciPin0" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('ciPin',0)" onkeydown="pinKey3(event,'ciPin',0)">
+        <input class="pin-digit" id="ciPin1" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('ciPin',1)" onkeydown="pinKey3(event,'ciPin',1)">
+        <input class="pin-digit" id="ciPin2" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('ciPin',2)" onkeydown="pinKey3(event,'ciPin',2)">
+        <input class="pin-digit" id="ciPin3" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('ciPin',3)" onkeydown="pinKey3(event,'ciPin',3)">
       </div>
     </div>
-    <div id="regError" style="color:#e74c3c;font-size:12px;text-align:center;min-height:16px;margin-bottom:8px;"></div>
+    <div id="checkInError" style="color:#e74c3c;font-size:12px;text-align:center;min-height:16px;margin-bottom:8px;"></div>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-ghost btn-block" onclick="closeModal('compRegModal');openModal('compFlowModal')">← Back</button>
-      <button class="btn btn-primary btn-block" onclick="submitCompRegister()">Register</button>
+      <button class="btn btn-ghost btn-block" onclick="closeModal('compCheckInModal');openModal('roleModal')">← Back</button>
+      <button class="btn btn-primary btn-block" onclick="submitCheckIn()">Check in ✓</button>
     </div>
   </div>
 </div>
 
-<!-- COMPETITOR LOGIN — returning fencer -->
+<!-- COMPETITOR LOGIN — already checked in -->
 <div class="modal-overlay" id="compLoginModal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title">Sign in</div>
+    <div class="modal-title">👋 Welcome back</div>
+    <p class="text-muted" style="margin-bottom:14px;font-size:13px;">Select your name and enter your PIN.</p>
     <div class="form-group">
-      <label>Select your name</label>
+      <label>Your name</label>
       <select id="loginNameSel"></select>
     </div>
     <div class="form-group">
       <label>Your PIN</label>
       <div class="pin-row">
-        <input class="pin-digit" id="loginPin0" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('login',0)" onkeydown="pinKey3(event,'login',0)">
-        <input class="pin-digit" id="loginPin1" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('login',1)" onkeydown="pinKey3(event,'login',1)">
-        <input class="pin-digit" id="loginPin2" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('login',2)" onkeydown="pinKey3(event,'login',2)">
-        <input class="pin-digit" id="loginPin3" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('login',3)" onkeydown="pinKey3(event,'login',3)">
+        <input class="pin-digit" id="loginPin0" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('loginPin',0)" onkeydown="pinKey3(event,'loginPin',0)">
+        <input class="pin-digit" id="loginPin1" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('loginPin',1)" onkeydown="pinKey3(event,'loginPin',1)">
+        <input class="pin-digit" id="loginPin2" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('loginPin',2)" onkeydown="pinKey3(event,'loginPin',2)">
+        <input class="pin-digit" id="loginPin3" type="password" inputmode="numeric" maxlength="1" oninput="pinInput3('loginPin',3)" onkeydown="pinKey3(event,'loginPin',3)">
       </div>
     </div>
     <div id="loginError" style="color:#e74c3c;font-size:12px;text-align:center;min-height:16px;margin-bottom:8px;"></div>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-ghost btn-block" onclick="closeModal('compLoginModal');openModal('compFlowModal')">← Back</button>
-      <button class="btn btn-primary btn-block" onclick="submitCompLogin()">Sign in</button>
+      <button class="btn btn-ghost btn-block" onclick="closeModal('compLoginModal');openModal('roleModal')">← Back</button>
+      <button class="btn btn-primary btn-block" onclick="submitCompLogin()">Log in</button>
     </div>
   </div>
 </div>
@@ -654,41 +645,52 @@ select option{background:var(--navy2);}
     <div style="margin-bottom:14px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--gold);margin-bottom:6px;">COMPETITION FORMAT</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.6;">
-        Teams foil competition. Each team has 3 fencers (4 if necessary — no one left out). Teams are grouped by the organisers.
+        Teams foil competition. Teams are generated by the app — even number of teams, each with 3 or 4 fencers, with at least one Int/Adv and one Beginner/Novice per team where possible. Teams are balanced by total worth score.
         <br><br>
-        Each match is fenced in relay — fencers rotate each bout. A bout ends when the running total reaches the milestone <span style="color:var(--white);">or 3 minutes passes</span>. Scores carry over between bouts.
-        <br><br>
-        <span style="color:var(--white);font-weight:500;">30 pts</span> (4+ teams) = 6 bouts &nbsp;·&nbsp; <span style="color:var(--white);font-weight:500;">45 pts</span> (2–3 teams) = 9 bouts
+        <span style="color:var(--white);font-weight:500;">Standard Direct Elimination (DE)</span> — seeded by team strength, with byes given to top seeds. Everyone gets at least 2–3 matches. Finals are for placement.
       </div>
 
-      <div style="margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 1</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 5 pts</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 2</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 10 pts</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 3</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 15 pts</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 4</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 20 pts</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">Bout 5</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 25 pts</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--gold);font-weight:500;">Bout 6</span><span style="color:var(--gold);font-family:'DM Mono',monospace;font-weight:500;">→ 30 pts ✓</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.45;"><span style="color:var(--muted);">Bout 7</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 35 pts</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.45;"><span style="color:var(--muted);">Bout 8</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 40 pts</span></div>
-        <div style="background:var(--navy2);border-radius:6px;padding:5px 8px;font-size:11px;display:flex;justify-content:space-between;opacity:.45;"><span style="color:var(--muted);">Bout 9</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">→ 45 pts</span></div>
+      <div style="margin-top:10px;background:var(--navy2);border-radius:var(--r);overflow:hidden;font-size:12px;">
+        <div style="padding:6px 12px;background:var(--navy3);font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Round structure</div>
+        <div style="padding:7px 12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;"><span style="color:var(--white);">Round 1 (+ byes for top seeds)</span><span style="color:var(--muted);">30 pts</span></div>
+        <div style="padding:7px 12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;background:rgba(255,255,255,.02);"><span style="color:var(--white);">Round 2 / Quarter-Finals</span><span style="color:var(--muted);">30 pts</span></div>
+        <div style="padding:7px 12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;"><span style="color:var(--white);">Semi-Finals</span><span style="color:var(--gold);">45 pts</span></div>
+        <div style="padding:7px 12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;background:rgba(255,255,255,.02);"><span style="color:var(--white);">🥉 Bronze Final — 3rd place</span><span style="color:var(--gold);">45 pts</span></div>
+        <div style="padding:7px 12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;"><span style="color:var(--white);">🥇 Gold Final — 1st place</span><span style="color:var(--gold);">45 pts</span></div>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:5px;">Bouts 7–9 for 45-point format only (dimmed above).</div>
 
-      <div style="margin-top:12px;font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">FORMAT BY SIGN-UPS</div>
-      <div style="background:var(--navy2);border-radius:var(--r);overflow:hidden;font-size:11px;">
-        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;background:var(--navy3);font-weight:500;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em;">
-          <span>Fencers</span><span>Teams</span><span>Format</span><span style="text-align:right;">~Time</span>
+      <div style="margin-top:10px;background:var(--navy2);border-radius:var(--r);overflow:hidden;font-size:12px;">
+        <div style="padding:6px 12px;background:var(--navy3);font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Seeding & byes</div>
+        <div style="padding:7px 12px;border-top:1px solid var(--border);color:var(--muted);line-height:1.6;">
+          Teams seeded by worth score (<span style="color:#2ecc71;">Beginner=1</span>, <span style="color:var(--blue2);">Novice=2</span>, <span style="color:var(--gold);">Int/Adv=3</span>). Teams with equal worth are randomly drawn. Bracket size = next power of 2 — top seeds get R1 byes so strong teams don't meet until later rounds.
         </div>
-        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);"><span style="color:var(--white);">6–8</span><span style="color:var(--muted);">2</span><span style="color:var(--muted);">RR → Final <span style="color:var(--gold);">(45pts)</span></span><span style="text-align:right;color:#2ecc71;">~40 min</span></div>
-        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);background:rgba(255,255,255,.02);"><span style="color:var(--white);">9–11</span><span style="color:var(--muted);">3</span><span style="color:var(--muted);">Full RR → Final <span style="color:var(--gold);">(45pts)</span></span><span style="text-align:right;color:#2ecc71;">~80 min</span></div>
-        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);"><span style="color:var(--white);">12–14</span><span style="color:var(--muted);">4</span><span style="color:var(--muted);">Full RR → SF → Final</span><span style="text-align:right;color:var(--gold);">~100 min</span></div>
-        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);background:rgba(255,255,255,.02);"><span style="color:var(--white);">15–17</span><span style="color:var(--muted);">5</span><span style="color:var(--muted);">2 Pools → SF → Final</span><span style="text-align:right;color:#2ecc71;">~80 min</span></div>
-        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);"><span style="color:var(--white);">18–23</span><span style="color:var(--muted);">6–7</span><span style="color:var(--muted);">2 Pools → SF → Final</span><span style="text-align:right;color:var(--gold);">~80–100</span></div>
-        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);background:rgba(255,255,255,.02);"><span style="color:var(--white);">24–32</span><span style="color:var(--muted);">8</span><span style="color:var(--muted);">2 Pools → SF → Final</span><span style="text-align:right;color:var(--gold);">~100 min</span></div>
-        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);"><span style="color:var(--white);">33–48</span><span style="color:var(--muted);">9–16</span><span style="color:var(--muted);">3–4 Pools → SF → Final</span><span style="text-align:right;color:var(--gold);">≤100 min</span></div>
-        <div style="display:grid;grid-template-columns:60px 50px 1fr 55px;padding:5px 10px;border-top:1px solid var(--border);background:rgba(255,255,255,.02);"><span style="color:var(--white);">49–60</span><span style="color:var(--muted);">16</span><span style="color:var(--muted);">4 Pools → SF → Final</span><span style="text-align:right;color:var(--gold);">~100 min</span></div>
+        <div style="padding:7px 12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">
+          <span style="background:var(--navy3);border-radius:5px;padding:3px 8px;font-size:11px;color:var(--muted);">4 teams → 4-bracket</span>
+          <span style="background:var(--navy3);border-radius:5px;padding:3px 8px;font-size:11px;color:var(--muted);">6–8 teams → 8-bracket (2 byes)</span>
+          <span style="background:var(--navy3);border-radius:5px;padding:3px 8px;font-size:11px;color:var(--muted);">10–16 teams → 16-bracket</span>
+        </div>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:5px;">App auto-selects format. All estimates based on 30-pt matches (~20 min each).</div>
+
+      <div style="margin-top:10px;background:var(--navy2);border-radius:var(--r);overflow:hidden;font-size:12px;">
+        <div style="padding:6px 12px;background:var(--navy3);font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Bout rules (relay format)</div>
+        <div style="padding:7px 12px;border-top:1px solid var(--border);color:var(--muted);line-height:1.6;">
+          Fencers rotate each bout. Bout ends when running total hits milestone <span style="color:var(--white);">or 3 minutes</span> passes. Scores carry over. Int/Adv fences <span style="color:var(--white);">Bout 1 and Bout 6</span> (first and last).
+        </div>
+        <div style="padding:5px 12px 7px;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
+          <span style="font-size:11px;color:var(--muted);">B1→5 · B2→10 · B3→15</span>
+          <span style="font-size:11px;color:var(--muted);">B4→20 · B5→25 · B6→30</span>
+          <span style="font-size:11px;color:var(--muted);opacity:.5;">B7→35 · B8→40 · B9→45</span>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;background:var(--navy2);border-radius:var(--r);overflow:hidden;font-size:12px;">
+        <div style="padding:6px 12px;background:var(--navy3);font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Rankings for eliminated teams (FIE)</div>
+        <div style="padding:7px 12px;border-top:1px solid var(--border);color:var(--muted);line-height:1.6;">
+          Ranked by: <span style="color:var(--white);">1.</span> Deepest round reached &nbsp;<span style="color:var(--white);">2.</span> Point differential (scored − conceded) &nbsp;<span style="color:var(--white);">3.</span> Total points scored
+        </div>
+      </div>
+
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);">Estimated time: ~70–90 min for up to 16 teams across 5 pistes.</div>
     </div>
 
     <div style="height:1px;background:var(--border);margin:10px 0;"></div>
@@ -866,6 +868,13 @@ select option{background:var(--navy2);}
   </div>
 </div>
 
+<!-- CARD FLASH OVERLAY -->
+<div id="cardFlash" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;" onclick="dismissCardFlash()">
+  <div style="font-size:120px;line-height:1;" id="cardFlashIcon">🟨</div>
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:3px;margin-top:12px;color:white;text-shadow:0 2px 8px rgba(0,0,0,.5);" id="cardFlashLabel"></div>
+  <div style="font-size:16px;color:rgba(255,255,255,.7);margin-top:8px;">Tap anywhere to continue</div>
+</div>
+
 <!-- PISTE EDIT (referee/committee) -->
 <div class="modal-overlay" id="pisteEditModal">
   <div class="modal">
@@ -962,7 +971,7 @@ function openManageCompetitors() {
   if (S.role !== 'committee') { showToast('Committee only'); return; }
   const sel = document.getElementById('compManageSel');
   if (S.compRegistry.length === 0) { showToast('No registered competitors yet'); return; }
-  sel.innerHTML = S.compRegistry.map(r =>
+  sel.innerHTML = sortBySurname(S.compRegistry.map(r=>({...r,name:r.name}))).map(r =>
     `<option value="${r.id}">${r.name} (${r.level==='intermediate'?'Int/Adv':r.level==='novice'?'Novice':'Beginner'})</option>`
   ).join('');
   ['newCompPin0','newCompPin1','newCompPin2','newCompPin3'].forEach(id => document.getElementById(id).value = '');
@@ -1092,64 +1101,58 @@ function savePasscodes() {
 }
 
 // ════════════════════════════════════════════════
-// COMPETITOR FLOW
+// COMPETITOR CHECK-IN FLOW (competition day)
 // ════════════════════════════════════════════════
-function openCompetitorFlow() {
+
+// Sort by surname (SURNAME, Firstname format)
+function sortBySurname(arr) {
+  return [...arr].sort((a,b) => (a.name||'').trim().toUpperCase().localeCompare((b.name||'').trim().toUpperCase()));
+}
+
+// Check In: competitor selects pre-registered name, sets PIN
+function openCompCheckIn() {
   closeModal('roleModal');
-  openModal('compFlowModal');
+  const available = sortBySurname(S.fencers.filter(f =>
+    !f.bailed && f.name.trim() && !S.compRegistry.find(r => r.id === f.id)
+  ));
+  if (!available.length) { showToast('No names available — contact committee'); return; }
+  const sel = document.getElementById('checkInNameSel');
+  sel.innerHTML = `<option value="">— select your name —</option>` +
+    available.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+  ['ciPin0','ciPin1','ciPin2','ciPin3'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('checkInError').textContent = '';
+  openModal('compCheckInModal');
 }
 
-function openCompRegister() {
-  closeModal('compFlowModal');
-  document.getElementById('regName').value = '';
-  document.getElementById('regLevel').value = 'beginner';
-  ['regPin0','regPin1','regPin2','regPin3'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('regError').textContent = '';
-  openModal('compRegModal');
-  setTimeout(() => document.getElementById('regName').focus(), 300);
-}
-
-function submitCompRegister() {
-  const name = document.getElementById('regName').value.trim();
-  const level = document.getElementById('regLevel').value;
-  const pin = [0,1,2,3].map(i => document.getElementById('regPin'+i).value).join('');
-  const errEl = document.getElementById('regError');
-
-  if (!name) { errEl.textContent = 'Enter your name'; return; }
+function submitCheckIn() {
+  const selId = parseInt(document.getElementById('checkInNameSel').value);
+  const pin = [0,1,2,3].map(i => document.getElementById('ciPin'+i).value).join('');
+  const errEl = document.getElementById('checkInError');
+  if (!selId) { errEl.textContent = 'Select your name'; return; }
   if (pin.length !== 4 || !/^\d{4}$/.test(pin)) { errEl.textContent = 'Set a 4-digit PIN'; return; }
-
-  // Check name not already registered
-  const existing = S.compRegistry.find(r => r.name.toLowerCase() === name.toLowerCase());
-  if (existing) { errEl.textContent = 'Name already registered — sign in instead'; return; }
-
-  // Use a single id for both registry entry and fencer object
-  const newId = fId++;
-  S.compRegistry.push({ id: newId, name, level, pin });
-  // Only add fencer locally if not already present (Firebase sync may have added it)
-  if (!S.fencers.find(f => f.id === newId)) {
-    S.fencers.push({ id: newId, name, level, bailed: false });
-  }
-  myFencerId = newId;
-  pushRegistry();
-  pushState();
-
-  closeModal('compRegModal');
-  showToast(`Registered! Now sign in, ${name} 🤺`);
-  // Send straight to login so they verify their PIN and get their personalised view
-  openCompLogin();
+  const fencer = S.fencers.find(f => f.id === selId);
+  if (!fencer) { errEl.textContent = 'Name not found'; return; }
+  if (S.compRegistry.find(r => r.id === selId)) { errEl.textContent = 'Already checked in — use Log in'; return; }
+  S.compRegistry.push({ id: selId, name: fencer.name, level: fencer.level, pin, checkedIn: true });
+  pushRegistry(); pushState();
+  myFencerId = selId;
+  closeModal('compCheckInModal');
+  setRole('competitor');
+  renderFencers();
+  showToast(`Checked in — welcome, ${fencer.name}! 🤺`);
 }
 
+// Log In: already checked-in competitor
 function openCompLogin() {
-  closeModal('compFlowModal');
+  closeModal('roleModal');
+  const checkedIn = sortBySurname(
+    S.compRegistry.map(r => S.fencers.find(f => f.id === r.id)).filter(Boolean)
+  );
+  if (!checkedIn.length) { showToast('No checked-in competitors yet'); return; }
   const sel = document.getElementById('loginNameSel');
-  if (S.compRegistry.length === 0) {
-    closeModal('compLoginModal');
-    openModal('compFlowModal');
-    showToast('No registered competitors yet');
-    return;
-  }
-  sel.innerHTML = S.compRegistry.map(r => `<option value="${r.id}">${r.name} (${r.level==='intermediate'?'Int/Adv':r.level==='novice'?'Novice':'Beginner'})</option>`).join('');
-  ['loginPin0','loginPin1','loginPin2','loginPin3'].forEach(id => document.getElementById(id).value = '');
+  sel.innerHTML = `<option value="">— select your name —</option>` +
+    checkedIn.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+  ['loginPin0','loginPin1','loginPin2','loginPin3'].forEach(id => document.getElementById(id).value='');
   document.getElementById('loginError').textContent = '';
   openModal('compLoginModal');
 }
@@ -1158,21 +1161,16 @@ function submitCompLogin() {
   const selId = parseInt(document.getElementById('loginNameSel').value);
   const pin = [0,1,2,3].map(i => document.getElementById('loginPin'+i).value).join('');
   const errEl = document.getElementById('loginError');
+  if (!selId) { errEl.textContent = 'Select your name'; return; }
   const reg = S.compRegistry.find(r => r.id === selId);
-  if (!reg) { errEl.textContent = 'Select your name'; return; }
+  if (!reg) { errEl.textContent = 'Not checked in yet'; return; }
   if (pin !== reg.pin) {
     errEl.textContent = 'Incorrect PIN — try again';
-    ['loginPin0','loginPin1','loginPin2','loginPin3'].forEach(id => document.getElementById(id).value = '');
+    ['loginPin0','loginPin1','loginPin2','loginPin3'].forEach(id => document.getElementById(id).value='');
     document.getElementById('loginPin0').focus();
     return;
   }
-  // Find matching fencer in S.fencers or create if not yet there
-  let fencer = S.fencers.find(f => f.name === reg.name && !f.bailed);
-  if (!fencer) {
-    fencer = { id: reg.id, name: reg.name, level: reg.level, bailed: false };
-    S.fencers.push(fencer);
-  }
-  myFencerId = fencer.id;
+  myFencerId = selId;
   closeModal('compLoginModal');
   setRole('competitor');
   showToast(`Welcome back, ${reg.name}! 🤺`);
@@ -1212,6 +1210,8 @@ function setRole(role) {
   document.getElementById('committeeStrip').style.display = role === 'committee' ? 'block' : 'none';
   const st = document.getElementById('setupToolsStrip');
   if (st) st.style.display = role === 'committee' ? 'block' : 'none';
+  const flh = document.getElementById('fencerListHeader');
+  if (flh) flh.style.display = role === 'committee' ? 'block' : 'none';
   if (role !== 'competitor') myFencerId = null;
   closeModal('roleModal');
   showToast(`Role: ${labels[role]}`);
@@ -1230,6 +1230,8 @@ function logOut() {
   document.getElementById('committeeStrip').style.display = 'none';
   const st = document.getElementById('setupToolsStrip');
   if (st) st.style.display = 'none';
+  const flh = document.getElementById('fencerListHeader');
+  if (flh) flh.style.display = 'none';
   closeModal('roleModal');
   showToast('Logged out — spectator view');
   renderEventInfo();
@@ -1326,48 +1328,99 @@ function renderEventInfo() {
 }
 
 function renderFencers() {
-  const active = S.fencers.filter(f => !f.bailed);
+  const active = sortBySurname(S.fencers.filter(f => !f.bailed && f.name.trim()));
   const bailed = S.fencers.filter(f => f.bailed);
   const isPriv = S.role === 'committee' || S.role === 'referee';
-  const isComp = S.role === 'competitor';
+  const isCom  = S.role === 'committee';
   const el = document.getElementById('fencerList');
-  let html = active.map((f, i) => {
-    const isOwn = isComp && f.id === myFencerId;
-    const canEdit = isPriv || isOwn;
-    if (canEdit) {
-      return `<div class="fencer-row">
-        <span class="num">${i+1}</span>
-        <input type="text" placeholder="${isOwn?'Your name':'Fencer name'}" value="${f.name}"
-          oninput="updateFencer(${f.id},'name',this.value)">
-        <select class="level-sel" onchange="updateFencer(${f.id},'level',this.value)">
-          <option value="beginner" ${f.level==='beginner'?'selected':''}>Beginner</option>
-          <option value="novice" ${f.level==='novice'?'selected':''}>Novice</option>
-          <option value="intermediate" ${f.level==='intermediate'?'selected':''}>Int / Advanced</option>
-        </select>
-        ${isPriv
-          ? `<button class="del-btn" onclick="removeFencer(${f.id})">×</button>`
-          : `<button class="del-btn" onclick="selfRemove(${f.id})" title="Remove yourself">×</button>`
-        }
+
+  let html = '';
+  if (!active.length) {
+    html = `<div class="text-muted" style="font-size:12px;padding:8px 0;text-align:center;">No fencers registered yet</div>`;
+  } else {
+    active.forEach((f, i) => {
+      const reg = S.compRegistry.find(r => r.id === f.id);
+      const isCheckedIn = !!reg;
+      html += `<div class="fencer-row" style="${isCheckedIn?'border-left:3px solid #2ecc71;':'border-left:3px solid transparent;'}">
+        <span style="font-size:11px;${isCheckedIn?'color:#2ecc71;':'color:var(--muted);'}margin-right:2px;">${isCheckedIn?'✓':'○'}</span>
+        <span style="flex:1;font-size:13px;color:var(--white);">${f.name}</span>
+        <span class="badge ${f.level==='intermediate'?'badge-gold':f.level==='novice'?'badge-red':'badge-blue'}" style="font-size:10px;">${f.level==='intermediate'?'Int/Adv':f.level==='novice'?'Novice':'Beginner'}</span>
+        ${isCom ? `
+          ${isCheckedIn ? `<button class="del-btn" style="color:var(--muted);font-size:11px;padding:0 4px;" onclick="resetCheckIn(${f.id})" title="Reset check-in">↺</button>` : ''}
+          <button class="del-btn" onclick="removeFencer(${f.id})" title="Remove fencer">×</button>
+        ` : ''}
       </div>`;
-    } else {
-      // read-only row for other fencers (competitor viewing others)
-      const badgeCls = f.level==='intermediate'?'badge-gold':f.level==='novice'?'badge-red':'badge-blue';
-      const levelLabel = f.level==='intermediate'?'Int/Adv':f.level==='novice'?'Novice':'Beginner';
-      return `<div class="fencer-row" style="opacity:.8;">
-        <span class="num">${i+1}</span>
-        <span style="flex:1;font-size:13px;color:var(--white);">${f.name||'(unnamed)'}</span>
-        <span class="badge ${badgeCls}" style="font-size:10px;">${levelLabel}</span>
-      </div>`;
-    }
-  }).join('');
+    });
+  }
+
   if (bailed.length) {
     html += `<div style="font-size:11px;color:var(--muted);margin-top:8px;padding-top:6px;border-top:1px solid var(--border);">
-      Withdrawn: ${bailed.map(f=>`<span style="text-decoration:line-through;margin-right:6px;">${f.name}</span>`).join('')}
+      Removed: ${bailed.map(f=>`<span style="text-decoration:line-through;margin-right:6px;">${f.name}</span>`).join('')}
     </div>`;
   }
   el.innerHTML = html;
+
+  // Update check-in count
+  const cc = document.getElementById('checkinCount');
+  if (cc) {
+    const total = active.length;
+    const checked = S.compRegistry.length;
+    cc.textContent = total ? `${checked}/${total} checked in` : '';
+  }
   updateGenCard();
 }
+
+function resetCheckIn(fencerId) {
+  if (S.role !== 'committee') return;
+  const f = S.fencers.find(x => x.id === fencerId);
+  if (!confirm(`Reset check-in for ${f?.name}? They will need to check in again.`)) return;
+  S.compRegistry = S.compRegistry.filter(r => r.id !== fencerId);
+  pushRegistry();
+  renderFencers();
+  showToast(`Check-in reset for ${f?.name}`);
+}
+
+
+function updateFencer(id, field, val) {
+  const f = S.fencers.find(x => x.id === id);
+  if (f) { f[field] = val; updateGenCard(); }
+}
+
+function updateTeamName(id, val) {
+  const t = S.teams.find(x => x.id === id);
+  if (t) { t.name = val; pushState(); }
+}
+
+function renderEventInfo() {
+  const el = document.getElementById('eventInfoCard');
+  if (!el) return;
+  const isCom = S.role === 'committee';
+  if (isCom) {
+    el.innerHTML = `<div class="card">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="text" id="evtDate" value="${S.eventInfo.date}" oninput="S.eventInfo.date=this.value;pushState()">
+      </div>
+      <div class="form-group">
+        <label>Venue</label>
+        <input type="text" id="evtVenue" value="${S.eventInfo.venue}" oninput="S.eventInfo.venue=this.value;pushState()">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>Start time</label>
+        <input type="time" id="evtTime" value="${S.eventInfo.time}" oninput="S.eventInfo.time=this.value;pushState()">
+      </div>
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="card" style="display:grid;gap:2px;">
+      <div class="info-row"><span class="lbl">Date</span><span>${S.eventInfo.date}</span></div>
+      <div class="info-row"><span class="lbl">Venue</span><span style="text-align:right;max-width:200px;">${S.eventInfo.venue}</span></div>
+      <div class="info-row" style="border-bottom:none"><span class="lbl">Time</span><span>${S.eventInfo.time}</span></div>
+      ${!S.role?`<div style="font-size:11px;color:var(--muted);padding-top:4px;text-align:center;">Set your role to register</div>`:''}
+    </div>`;
+  }
+}
+
+// (duplicate renderFencers removed)
 
 function updateGenCard() {
   const n = S.fencers.filter(f => !f.bailed && f.name.trim()).length;
@@ -1574,13 +1627,14 @@ function calcFormat(teamCount) {
   return { points, bouts: points / 5, teams: teamCount, structure: profile.label, profile };
 }
 
-// Estimated time in minutes
+// Estimated time — DE format: each round ~20min, SF/Finals ~25min each
 function estimateTime(teamCount) {
-  const profile = getFormatProfile(teamCount);
-  const tpp = Math.ceil(teamCount / profile.pools);
-  const rrTime = (tpp - 1) * 20;
-  const deTime = profile.sfNeeded ? 40 : 20;
-  return rrTime + deTime;
+  const bracketSize = nextPow2(teamCount);
+  const numRounds = Math.log2(bracketSize);
+  // DE rounds run concurrently across 5 pistes
+  // R1 through QF: 1 slot each (20min), SF 1 slot (25min), Finals 1 slot (25min)
+  const deRounds = Math.max(0, numRounds - 2); // rounds before SF
+  return deRounds * 20 + 25 + 25; // +SF +Finals
 }
 
 // ── 4-fencer team bout order ──────────────────────────────────────
@@ -1691,154 +1745,254 @@ function generateTeams() {
   showToast('Teams generated ✓ — now generate the draw');
 }
 
-// ── Bracket builder ───────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+// DE BRACKET ENGINE
+// Standard single-elimination with:
+//   - Bracket size = next power of 2 ≥ numTeams
+//   - Byes given to top seeds (by worth) in R1
+//   - DE rounds: 30pts  |  SF + Bronze + Gold: 45pts
+//   - Bronze final (3rd place match) between SF losers
+//   - Eliminated teams ranked by FIE indicator (diff then scored)
+// ════════════════════════════════════════════════════════════════
+
+function nextPow2(n) {
+  let p = 1; while (p < n) p *= 2; return p;
+}
+
 function buildBracket(numTeams) {
   S.matches = []; S.bracket = [];
-  const profile = S.format.profile || getFormatProfile(numTeams);
-  const numPools = profile.pools;
-  const teamsPerPool = Math.ceil(numTeams / numPools);
-
-  // Split teams into pools by worth (interleave for balance)
-  // Sort teams by worth desc, then snake-distribute into pools
-  const sorted = [...S.teams].sort((a,b)=>teamWorth(b)-teamWorth(a));
-  const pools = Array.from({length: numPools}, () => []);
-  sorted.forEach((t, i) => {
-    // Snake: 0,1,2,1,0 for 3 pools etc
-    const row = Math.floor(i / numPools);
-    const col = row % 2 === 0 ? (i % numPools) : (numPools - 1 - i % numPools);
-    pools[col].push(t);
-  });
-
-  // Generate RR matches within each pool, schedule using greedy slot algorithm
-  // Slots are GLOBAL — matches from different pools share piste time
-  const allPoolPairs = [];
-  pools.forEach((pool, poolIdx) => {
-    for (let i = 0; i < pool.length; i++)
-      for (let j = i+1; j < pool.length; j++)
-        allPoolPairs.push({ tA: pool[i], tB: pool[j], pool: poolIdx });
-  });
-
-  // Greedy slot scheduler: no team on two pistes in same slot, max 5 pistes per slot
   const PISTES = [1,2,3,4,5];
-  const slots = [];
-  const unscheduled = [...allPoolPairs];
-  while (unscheduled.length) {
-    const slot = []; const busyTeams = new Set(); const remaining = [];
-    for (const pair of unscheduled) {
-      if (!busyTeams.has(pair.tA.id) && !busyTeams.has(pair.tB.id) && slot.length < 5) {
-        slot.push(pair); busyTeams.add(pair.tA.id); busyTeams.add(pair.tB.id);
-      } else remaining.push(pair);
-    }
-    slots.push(slot); unscheduled.splice(0, unscheduled.length, ...remaining);
-  }
+  const bracketSize = nextPow2(numTeams);
+  const numRounds = Math.log2(bracketSize);
 
-  const rrMatchIds = [];
-  const poolLabels = pools.map((pool, i) =>
-    numPools === 1 ? 'Round Robin' : 'Pool ' + String.fromCharCode(65+i)
-  );
-  slots.forEach((slot, slotIdx) => {
-    slot.forEach((pair, pi) => {
-      const m = {
-        id: mId++, round: 'rr', piste: PISTES[pi % 5],
-        teamA: pair.tA.id, teamB: pair.tB.id,
-        bouts: [], scoreA: 0, scoreB: 0, target: S.format.points,
-        status: 'pending', winner: null, phase: 'rr',
-        poolIdx: pair.pool, slot: slotIdx + 1
-      };
-      S.matches.push(m); rrMatchIds.push(m.id);
-    });
+  // ── Step 1: Sort teams into seeded order ──────────────────────────
+  // Group by worth score, shuffle within each group, then flatten
+  const worthGroups = {};
+  S.teams.forEach(t => {
+    const w = teamWorth(t);
+    if (!worthGroups[w]) worthGroups[w] = [];
+    worthGroups[w].push(t);
   });
-  S.bracket.push({ round: 'rr', label: numPools===1?'Round Robin':'Pool Stage', matchIds: rrMatchIds, pools: poolLabels });
+  // Shuffle each tied group (fair random draw for equal-worth teams)
+  Object.values(worthGroups).forEach(g => shuffle(g));
+  // Flatten sorted desc by worth → seeded list
+  const seeded = Object.keys(worthGroups)
+    .sort((a,b) => b-a)
+    .flatMap(w => worthGroups[w]);
 
-  // Semi-finals — only if profile requires it
-  if (profile.sfNeeded) {
-    const sf1 = { id: mId++, round: 'sf', piste: 1, teamA: 'TBD_sf1a', teamB: 'TBD_sf1b',
-      bouts: [], scoreA: 0, scoreB: 0, target: S.format.points, status: 'waiting', winner: null, phase: 'sf' };
-    const sf2 = { id: mId++, round: 'sf', piste: 2, teamA: 'TBD_sf2a', teamB: 'TBD_sf2b',
-      bouts: [], scoreA: 0, scoreB: 0, target: S.format.points, status: 'waiting', winner: null, phase: 'sf' };
-    S.matches.push(sf1, sf2);
-    S.bracket.push({ round: 'sf', label: 'Semi-Finals (1v4, 2v3)', matchIds: [sf1.id, sf2.id] });
+  // ── Step 2: Place seeds into standard bracket positions ──────────
+  // Standard tournament seeding for bracket of size N:
+  // Builds pairings so: seed1 vs seedN, seed2 vs seedN-1...
+  // and they can only meet in the final.
+  // Algorithm: recursively place seeds into bracket halves.
+  function buildSeedOrder(n) {
+    if (n === 2) return [1, 2];
+    const half = n / 2;
+    const top = buildSeedOrder(half);
+    // For each position in the top half, the opponent is n+1-seed
+    const result = [];
+    top.forEach(s => {
+      result.push(s);
+      result.push(n + 1 - s);
+    });
+    return result;
   }
+  const seedOrder = buildSeedOrder(bracketSize); // e.g. [1,8,4,5,3,6,2,7] for 8
+  const slots = seedOrder.map(rank => seeded[rank - 1] || null); // null = bye
 
-  const gf = { id: mId++, round: 'gf', piste: 1, teamA: 'TBD_gf_a', teamB: 'TBD_gf_b',
-    bouts: [], scoreA: 0, scoreB: 0, target: S.format.points, status: 'waiting', winner: null, phase: 'gf' };
-  S.matches.push(gf);
-  S.bracket.push({ round: 'gf', label: 'Grand Final', matchIds: [gf.id] });
-}
+  // ── Step 3: Build R1 matches ──────────────────────────────────────
+  let r1MatchIds = [];
+  let pisteIdx = 0;
+  const nextRoundSlots = [];
 
-function advanceBracket(m) {
-  if (m.phase === 'rr') {
-    const rrMatches = S.matches.filter(x => x.phase === 'rr');
-    if (rrMatches.every(x => x.status === 'complete')) {
-      const profile = S.format?.profile || getFormatProfile(S.teams.length);
-      if (!profile.sfNeeded) seedFinalDirect();
-      else seedSemiFinals();
+  for (let i = 0; i < bracketSize; i += 2) {
+    const tA = slots[i];
+    const tB = slots[i+1];
+    if (!tA && !tB) { nextRoundSlots.push(null); continue; }
+    if (!tB || !tA) {
+      // Bye: top seed advances automatically
+      const byeTeam = tA || tB;
+      nextRoundSlots.push({ team: byeTeam, isBye: true });
+      continue;
     }
-  } else if (m.phase === 'sf') {
-    const sfMatches = S.matches.filter(x => x.phase === 'sf');
-    if (sfMatches.every(x => x.status === 'complete')) seedFinal();
+    const m = {
+      id: mId++, phase: 'r1', round: 1,
+      piste: PISTES[pisteIdx % 5],
+      teamA: tA.id, teamB: tB.id,
+      bouts: [], scoreA: 0, scoreB: 0, target: 30,
+      status: 'pending', winner: null
+    };
+    S.matches.push(m); r1MatchIds.push(m.id);
+    nextRoundSlots.push({ matchId: m.id });
+    pisteIdx++;
+  }
+  if (r1MatchIds.length > 0) {
+    S.bracket.push({ phase: 'r1', label: 'Round 1', matchIds: r1MatchIds });
+  }
+
+  // Build subsequent DE rounds (R2, QF, SF)
+  // Track: { matchId } or { team, isBye } slots per round
+  let currentSlots = nextRoundSlots;
+  let round = 2;
+  const dePhaseLabels = { 2:'Round 2', 4:'Quarter-Finals', 8:'Round of 16' };
+
+  while (currentSlots.length > 4) {
+    const roundMatchIds = []; const nextSlots = [];
+    for (let i = 0; i < currentSlots.length; i += 2) {
+      const sA = currentSlots[i], sB = currentSlots[i+1];
+      const tAid = sA?.team?.id ? sA.team.id : ('TBD_r'+round+'_'+i);
+      const tBid = sB?.team?.id ? sB.team.id : ('TBD_r'+round+'_'+(i+1));
+      const isPending = sA?.team && sB?.team && !sA?.matchId && !sB?.matchId;
+      // If both are byes, auto-advance one
+      const m = {
+        id: mId++, phase: 'r'+round, round,
+        piste: PISTES[pisteIdx % 5],
+        teamA: tAid, teamB: tBid,
+        bouts: [], scoreA: 0, scoreB: 0, target: 30,
+        status: (sA?.team && sB?.team && !sA?.matchId && !sB?.matchId) ? 'pending' : 'waiting',
+        winner: null
+      };
+      if (m.status === 'pending') initBouts(m);
+      S.matches.push(m); roundMatchIds.push(m.id);
+      nextSlots.push({ matchId: m.id });
+      pisteIdx++;
+    }
+    const label = dePhaseLabels[currentSlots.length] || ('Round '+round);
+    S.bracket.push({ phase: 'r'+round, label, matchIds: roundMatchIds });
+    currentSlots = nextSlots;
+    round++;
+  }
+
+  // Semi-finals (always 45pts — placement round)
+  const sf1 = {
+    id: mId++, phase: 'sf', round,
+    piste: PISTES[pisteIdx%5], teamA: 'TBD_sf1a', teamB: 'TBD_sf1b',
+    bouts: [], scoreA: 0, scoreB: 0, target: 45,
+    status: 'waiting', winner: null
+  };
+  const sf2 = {
+    id: mId++, phase: 'sf', round,
+    piste: PISTES[(pisteIdx+1)%5], teamA: 'TBD_sf2a', teamB: 'TBD_sf2b',
+    bouts: [], scoreA: 0, scoreB: 0, target: 45,
+    status: 'waiting', winner: null
+  };
+  S.matches.push(sf1, sf2);
+  S.bracket.push({ phase: 'sf', label: 'Semi-Finals', matchIds: [sf1.id, sf2.id] });
+  pisteIdx += 2;
+
+  // Bronze final (3rd place — 45pts)
+  const bronze = {
+    id: mId++, phase: 'bronze', round: round+1,
+    piste: PISTES[(pisteIdx+1)%5], teamA: 'TBD_br_a', teamB: 'TBD_br_b',
+    bouts: [], scoreA: 0, scoreB: 0, target: 45,
+    status: 'waiting', winner: null
+  };
+  S.matches.push(bronze);
+
+  // Gold final (45pts)
+  const gf = {
+    id: mId++, phase: 'gf', round: round+1,
+    piste: PISTES[pisteIdx%5], teamA: 'TBD_gf_a', teamB: 'TBD_gf_b',
+    bouts: [], scoreA: 0, scoreB: 0, target: 45,
+    status: 'waiting', winner: null
+  };
+  S.matches.push(gf);
+  S.bracket.push({ phase: 'finals', label: 'Finals', matchIds: [bronze.id, gf.id] });
+}
+
+// Called after every match completes — advance the DE bracket
+function advanceBracket(completedMatch) {
+  const phase = completedMatch.phase;
+  const winnerId = completedMatch.winner === 'A' ? completedMatch.teamA : completedMatch.teamB;
+  const loserId  = completedMatch.winner === 'A' ? completedMatch.teamB : completedMatch.teamA;
+
+  if (phase === 'sf') {
+    // After both SFs complete, seed bronze + gold finals
+    const sfMatches = S.matches.filter(m => m.phase === 'sf');
+    if (sfMatches.every(m => m.status === 'complete')) {
+      const winners = sfMatches.map(m => m.winner==='A'?m.teamA:m.teamB);
+      const losers  = sfMatches.map(m => m.winner==='A'?m.teamB:m.teamA);
+      const bronze = S.matches.find(m => m.phase === 'bronze');
+      const gf     = S.matches.find(m => m.phase === 'gf');
+      if (bronze) {
+        bronze.teamA = losers[0]; bronze.teamB = losers[1];
+        if (S.teams.find(t=>t.id===bronze.teamA) && S.teams.find(t=>t.id===bronze.teamB)) {
+          bronze.status = 'pending'; initBouts(bronze);
+        }
+      }
+      if (gf) {
+        gf.teamA = winners[0]; gf.teamB = winners[1];
+        if (S.teams.find(t=>t.id===gf.teamA) && S.teams.find(t=>t.id===gf.teamB)) {
+          gf.status = 'pending'; initBouts(gf);
+        }
+      }
+    }
+    return;
+  }
+
+  if (phase === 'gf' || phase === 'bronze') return; // terminal matches
+
+  // For DE rounds: find the next-round match that this match feeds into
+  // and assign the winner. Use bracket slot position.
+  const curBr = S.bracket.find(b => b.matchIds && b.matchIds.includes(completedMatch.id));
+  if (!curBr) return;
+  const posInRound = curBr.matchIds.indexOf(completedMatch.id);
+  const nextBr = S.bracket[S.bracket.indexOf(curBr) + 1];
+  if (!nextBr || !nextBr.matchIds) return;
+  const nextMatchId = nextBr.matchIds[Math.floor(posInRound / 2)];
+  const nextMatch = S.matches.find(m => m.id === nextMatchId);
+  if (!nextMatch) return;
+  // Assign winner to correct slot (A or B)
+  if (posInRound % 2 === 0) nextMatch.teamA = winnerId;
+  else nextMatch.teamB = winnerId;
+  // If both teams now assigned and real → pending
+  const tA = S.teams.find(t => t.id === nextMatch.teamA);
+  const tB = S.teams.find(t => t.id === nextMatch.teamB);
+  if (tA && tB && nextMatch.status === 'waiting') {
+    nextMatch.status = 'pending'; initBouts(nextMatch);
   }
 }
 
-function seedFinalDirect() {
-  // For 2-team RR: top 2 (all teams) go straight to final
-  const standings = getRRStandings();
-  const gf = S.matches.find(x => x.phase === 'gf');
-  if (!gf) return;
-  gf.teamA = standings[0]?.team.id || 'TBD';
-  gf.teamB = standings[1]?.team.id || 'TBD';
-  if (S.teams.find(t=>t.id===gf.teamA) && S.teams.find(t=>t.id===gf.teamB)) {
-    gf.status = 'pending'; initBouts(gf);
-  }
-}
-
-function getRRStandings() {
-  // Per-pool standings when multiple pools exist
-  const numPools = S.format?.profile?.pools || 1;
-  if (numPools === 1) {
-    // Single pool: rank all teams by wins → diff → scored
-    return S.teams.map(t => {
-      const ms = S.matches.filter(x => x.phase==='rr' && (x.teamA===t.id||x.teamB===t.id) && x.status==='complete');
-      const wins = ms.filter(x=>(x.winner==='A'&&x.teamA===t.id)||(x.winner==='B'&&x.teamB===t.id)).length;
-      const scored = ms.reduce((s,x)=>s+(x.teamA===t.id?x.scoreA:x.scoreB),0);
-      const conceded = ms.reduce((s,x)=>s+(x.teamA===t.id?x.scoreB:x.scoreA),0);
-      const poolIdx = S.matches.find(x=>x.phase==='rr'&&(x.teamA===t.id||x.teamB===t.id))?.poolIdx ?? 0;
-      return { team: t, wins, played: ms.length, scored, conceded, diff: scored-conceded, poolIdx };
-    }).sort((a,b)=>b.wins-a.wins||b.diff-a.diff||b.scored-a.scored);
-  }
-  // Multi-pool: rank within each pool, then merge top 2 per pool
-  const poolResults = [];
-  for (let p = 0; p < numPools; p++) {
-    const poolTeamIds = [...new Set(
-      S.matches.filter(x=>x.phase==='rr'&&x.poolIdx===p).flatMap(x=>[x.teamA,x.teamB])
-    )];
-    const poolStandings = poolTeamIds.map(tid => {
-      const t = S.teams.find(x=>x.id===tid);
-      if (!t) return null;
-      const ms = S.matches.filter(x=>x.phase==='rr'&&x.poolIdx===p&&(x.teamA===t.id||x.teamB===t.id)&&x.status==='complete');
-      const wins = ms.filter(x=>(x.winner==='A'&&x.teamA===t.id)||(x.winner==='B'&&x.teamB===t.id)).length;
-      const scored = ms.reduce((s,x)=>s+(x.teamA===t.id?x.scoreA:x.scoreB),0);
-      const conceded = ms.reduce((s,x)=>s+(x.teamA===t.id?x.scoreB:x.scoreA),0);
-      return { team: t, wins, played: ms.length, scored, conceded, diff: scored-conceded, poolIdx: p };
-    }).filter(Boolean).sort((a,b)=>b.wins-a.wins||b.diff-a.diff||b.scored-a.scored);
-    poolResults.push(poolStandings);
-  }
-  // Return merged: all results, sorted by pool rank then stats
-  return poolResults.flat();
-}
-
-function getTop4() {
-  const numPools = S.format?.profile?.pools || 1;
-  const standings = getRRStandings();
-  if (numPools === 1) return standings.slice(0, 4);
-  // Multi-pool: top 2 from each pool → rank by stats → top 4
-  const numPools2 = numPools;
-  const topPerPool = [];
-  for (let p = 0; p < numPools2; p++) {
-    const poolTeams = standings.filter(s => s.poolIdx === p);
-    topPerPool.push(...poolTeams.slice(0, 2));
-  }
-  return topPerPool.sort((a,b)=>b.wins-a.wins||b.diff-a.diff||b.scored-a.scored).slice(0,4);
+// FIE-style standings across all DE matches
+function getDEStandings() {
+  return S.teams.map(t => {
+    const ms = S.matches.filter(m =>
+      (m.teamA===t.id||m.teamB===t.id) && m.status==='complete'
+    );
+    const wins = ms.filter(m=>(m.winner==='A'&&m.teamA===t.id)||(m.winner==='B'&&m.teamB===t.id)).length;
+    const scored   = ms.reduce((s,m)=>s+(m.teamA===t.id?m.scoreA:m.scoreB),0);
+    const conceded = ms.reduce((s,m)=>s+(m.teamA===t.id?m.scoreB:m.scoreA),0);
+    // Find furthest round reached
+    const roundOrder = ['r1','r2','r3','r4','sf','bronze','gf'];
+    const phasesReached = ms.map(m=>m.phase);
+    const deepest = roundOrder.reduce((best,r) => phasesReached.includes(r)?r:best, 'r1');
+    // Final placement
+    let placement = null;
+    const gfm = S.matches.find(m=>m.phase==='gf'&&m.status==='complete');
+    const brm = S.matches.find(m=>m.phase==='bronze'&&m.status==='complete');
+    if (gfm) {
+      const gfWinner = gfm.winner==='A'?gfm.teamA:gfm.teamB;
+      const gfLoser  = gfm.winner==='A'?gfm.teamB:gfm.teamA;
+      if (t.id===gfWinner) placement=1;
+      else if (t.id===gfLoser) placement=2;
+    }
+    if (brm) {
+      const brWinner = brm.winner==='A'?brm.teamA:brm.teamB;
+      const brLoser  = brm.winner==='A'?brm.teamB:brm.teamA;
+      if (t.id===brWinner) placement=3;
+      else if (t.id===brLoser) placement=4;
+    }
+    return { team:t, wins, played:ms.length, scored, conceded, diff:scored-conceded, deepest, placement };
+  }).sort((a,b) => {
+    if (a.placement && b.placement) return a.placement - b.placement;
+    if (a.placement) return -1;
+    if (b.placement) return 1;
+    // Rank unplaced by deepest round then FIE indicator
+    const ro = ['r1','r2','r3','r4','sf','bronze','gf'];
+    const depthDiff = ro.indexOf(b.deepest) - ro.indexOf(a.deepest);
+    if (depthDiff !== 0) return depthDiff;
+    return b.diff - a.diff || b.scored - a.scored;
+  });
 }
 
 function getIndividualScores() {
@@ -1857,7 +2011,7 @@ function getIndividualScores() {
 }
 
 function seedSemiFinals() {
-  const top4 = getTop4();
+  const top4 = getDEStandings().slice(0,4);
   const sfMatches = S.matches.filter(x => x.phase === 'sf');
   if (sfMatches.length < 2 || top4.length < 2) return;
   sfMatches[0].teamA = top4[0].team.id;
@@ -1887,18 +2041,18 @@ function overrideMatchTarget(phase, newTarget) {
   if (S.role !== 'committee') return;
   const pts = parseInt(newTarget);
   if (pts !== 30 && pts !== 45) return;
-  const bouts = pts / 5;
-  const estWarning = pts === 45 ? ' (adds ~10 min per match)' : '';
-  if (!confirm(`Change ${phase==='sf'?'Semi-Finals':'Grand Final'} to ${pts} points${estWarning}?`)) return;
-  S.matches.filter(m => m.phase === phase && m.status !== 'complete').forEach(m => {
-    m.target = pts;
-    // Reinitialise bouts if match is pending (hasn't started yet)
-    if (m.status === 'pending') { m.bouts = []; initBouts(m); }
-    // If live, just update target — current bouts continue, new bouts will have new target
+  const phasesToUpdate = phase === 'finals' ? ['bronze','gf'] : [phase];
+  const label = phase === 'finals' ? 'Finals' : phase === 'sf' ? 'Semi-Finals' : phase === 'bronze' ? 'Bronze Final' : 'Gold Final';
+  const estWarning = pts === 45 ? ' (+~5 min per match)' : '';
+  if (!confirm(`Change ${label} to ${pts} points${estWarning}?`)) return;
+  phasesToUpdate.forEach(ph => {
+    S.matches.filter(m => m.phase === ph && m.status !== 'complete').forEach(m => {
+      m.target = pts;
+      if (m.status === 'pending') { m.bouts = []; initBouts(m); }
+    });
   });
-  pushState();
-  renderBracket();
-  showToast(`${phase==='sf'?'Semi-Finals':'Grand Final'} → ${pts} pts`);
+  pushState(); renderBracket();
+  showToast(`${label} → ${pts} pts`);
 }
 
 function roundLabel(r, n) {
@@ -2165,33 +2319,33 @@ function renderScoring() {
       <div class="timer-display ${tc}" id="liveTimer_${m.id}" ${isPriv?`onclick="openTimerEdit(${m.id},${boutIdx})" title="Tap to set timer" style="cursor:pointer;"`:''}>${mins}:${secs}</div>
       ${isPriv?`
       <div style="display:flex;gap:7px;margin-bottom:8px;">
-        <button class="btn btn-ghost btn-block btn-sm" onclick="toggleTimer(${m.id},${boutIdx})">${t.running?'⏸ Pause':'▶ Start timer'}</button>
-        <button class="btn btn-ghost btn-sm" onclick="resetTimer(${m.id},${boutIdx})" style="flex-shrink:0">↺</button>
+        <button class="btn ${t.running?'btn-danger':'btn-primary'} btn-block" style="font-size:17px;padding:12px;font-family:'Bebas Neue',sans-serif;letter-spacing:1px;" onclick="toggleTimer(${m.id},${boutIdx})">${t.running?'⏸  PAUSE':'▶  START TIMER'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetTimer(${m.id},${boutIdx})" style="flex-shrink:0;margin-top:4px;">↺ Reset</button>
       </div>
 
       <div class="score-btns">
         <div class="score-btn team-a" onclick="addPoint(${m.id},'A')">
           <div class="score-btn-label">${tA?.name}</div>
           <div class="score-btn-name a">${ab.fencerA}</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px;">+ 1 touch</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;font-weight:500;">TAP = +1 touch</div>
         </div>
         <div class="score-btn team-b" onclick="addPoint(${m.id},'B')">
           <div class="score-btn-label">${tB?.name}</div>
           <div class="score-btn-name b">${ab.fencerB}</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px;">+ 1 touch</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;font-weight:500;">TAP = +1 touch</div>
         </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
-        <button class="btn btn-ghost btn-sm" onclick="removePoint(${m.id},'A')" style="border-color:rgba(201,162,39,.3);color:var(--gold);">↩ Undo A</button>
-        <button class="btn btn-ghost btn-sm" onclick="removePoint(${m.id},'B')" style="border-color:rgba(46,125,212,.3);color:var(--blue2);">↩ Undo B</button>
+        <button class="btn btn-ghost" onclick="removePoint(${m.id},'A')" style="border-color:rgba(201,162,39,.5);color:var(--gold);padding:10px;font-size:13px;">↩ Undo A</button>
+        <button class="btn btn-ghost" onclick="removePoint(${m.id},'B')" style="border-color:rgba(46,125,212,.5);color:var(--blue2);padding:10px;font-size:13px;">↩ Undo B</button>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:4px;">
-        <button class="btn btn-sm" onclick="issueCard(${m.id},'A','yellow')" style="background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.5);color:#f0c000;padding:6px 4px;font-size:11px;">🟨 A</button>
-        <button class="btn btn-sm" onclick="issueCard(${m.id},'A','red')" style="background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.5);color:#e74c3c;padding:6px 4px;font-size:11px;">🟥 A</button>
-        <button class="btn btn-sm" onclick="issueCard(${m.id},'B','yellow')" style="background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.5);color:#f0c000;padding:6px 4px;font-size:11px;">🟨 B</button>
-        <button class="btn btn-sm" onclick="issueCard(${m.id},'B','red')" style="background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.5);color:#e74c3c;padding:6px 4px;font-size:11px;">🟥 B</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:6px;">
+        <button class="btn" onclick="issueCard(${m.id},'A','yellow')" style="background:rgba(255,204,0,.2);border:2px solid rgba(255,204,0,.7);color:#f0c000;padding:10px 4px;font-size:13px;font-weight:700;">🟨<br><span style='font-size:10px;'>${tA?.name}</span></button>
+        <button class="btn" onclick="issueCard(${m.id},'A','red')" style="background:rgba(192,57,43,.2);border:2px solid rgba(192,57,43,.7);color:#e74c3c;padding:10px 4px;font-size:13px;font-weight:700;">🟥<br><span style='font-size:10px;'>${tA?.name}</span></button>
+        <button class="btn" onclick="issueCard(${m.id},'B','yellow')" style="background:rgba(255,204,0,.2);border:2px solid rgba(255,204,0,.7);color:#f0c000;padding:10px 4px;font-size:13px;font-weight:700;">🟨<br><span style='font-size:10px;'>${tB?.name}</span></button>
+        <button class="btn" onclick="issueCard(${m.id},'B','red')" style="background:rgba(192,57,43,.2);border:2px solid rgba(192,57,43,.7);color:#e74c3c;padding:10px 4px;font-size:13px;font-weight:700;">🟥<br><span style='font-size:10px;'>${tB?.name}</span></button>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:8px;">
         <button class="btn btn-ghost btn-sm" style="flex:1;font-size:11px;" onclick="removeCard(${m.id})">↩ Undo last card</button>
@@ -2199,7 +2353,7 @@ function renderScoring() {
       </div>
 
       <div style="display:flex;gap:7px;margin-bottom:12px;">
-        <button class="btn btn-ghost btn-sm" onclick="promptNextBout(${m.id},'manual')" style="flex:1">⏹ End bout</button>
+        <button class="btn btn-ghost" onclick="promptNextBout(${m.id},'manual')" style="flex:1;padding:10px;font-size:13px;border-color:rgba(255,255,255,.2);">⏹ End bout</button>
       </div>
       `:`
       <div style="background:var(--navy2);border-radius:var(--r);padding:10px 12px;text-align:center;margin:8px 0 4px;border:1px solid var(--border);">
@@ -2281,23 +2435,29 @@ function issueCard(matchId, side, cardType) {
   if (!m||m.status==='complete') return;
   const ab = m.bouts.find(b=>b.status==='active');
   if (!ab) return;
+  const tA = S.teams.find(t=>t.id===m.teamA);
+  const tB = S.teams.find(t=>t.id===m.teamB);
   if (!ab.cards) ab.cards = [];
   ab.cards.push({ side, type: cardType, boutNum: ab.boutNum });
+  const fencerName = side==='A' ? ab.fencerA : ab.fencerB;
+  const teamName   = side==='A' ? tA?.name : tB?.name;
   if (cardType === 'red') {
     const oppSide = side === 'A' ? 'B' : 'A';
     if (oppSide === 'A') { ab.ptsA++; m.scoreA++; }
     else { ab.ptsB++; m.scoreB++; }
-    showToast(`🟥 Red card → ${oppSide==='A'?'Team A':'Team B'} +1 pt`);
-    if (m.scoreA>=m.target||m.scoreB>=m.target) { endMatch(m); return; }
+    showCardFlash(side, 'red', fencerName, teamName);
+    if (m.scoreA>=m.target||m.scoreB>=m.target) {
+      stopTimer(m.id+'_'+m.bouts.indexOf(ab)); promptMatchEnd(m.id); return;
+    }
     const boutTarget = ab.boutNum * 5;
     if (m.scoreA>=boutTarget||m.scoreB>=boutTarget) {
       stopTimer(m.id+'_'+m.bouts.indexOf(ab));
-      promptNextBout(matchId, 'target');
-      return;
+      promptNextBout(matchId, 'target'); return;
     }
   } else {
-    showToast(`🟨 Yellow card — ${side==='A'?ab.fencerA:ab.fencerB} warned`);
+    showCardFlash(side, 'yellow', fencerName, teamName);
   }
+  pushState();
   renderScoring(); renderMatches();
 }
 
@@ -2471,7 +2631,28 @@ function savePisteEdit(matchId, piste) {
   showToast(`→ Piste ${piste}`);
 }
 
-// ── Bout score editing (referee / committee) ─────────────────────
+// ── Card flash overlay ─────────────────────────────────────────
+function showCardFlash(side, cardType, fencerName, teamName) {
+  const el = document.getElementById('cardFlash');
+  const icon = document.getElementById('cardFlashIcon');
+  const label = document.getElementById('cardFlashLabel');
+  const isYellow = cardType === 'yellow';
+  el.style.background = isYellow ? '#c9a227' : '#8b1a1a';
+  icon.textContent = isYellow ? '🟨' : '🟥';
+  label.textContent = isYellow
+    ? `YELLOW CARD — ${fencerName}`
+    : `RED CARD — ${fencerName} · +1 to opponent`;
+  el.style.display = 'flex';
+  // Auto-dismiss after 3 seconds
+  clearTimeout(el._timeout);
+  el._timeout = setTimeout(dismissCardFlash, 3000);
+}
+function dismissCardFlash() {
+  const el = document.getElementById('cardFlash');
+  if (el) { el.style.display = 'none'; clearTimeout(el._timeout); }
+}
+
+
 function openBoutEdit(matchId, boutIdx) {
   if (S.role!=='referee'&&S.role!=='committee') return;
   const m = S.matches.find(x=>x.id===matchId);
@@ -2775,62 +2956,48 @@ function resetTimer(matchId,boutIdx) {
 function renderBracket() {
   const el = document.getElementById('bracketContent');
   if (!S.started||!S.bracket.length) { el.innerHTML=emptyState('🏆','Start competition to see bracket'); return; }
-  const gfMatch = S.matches.find(m=>m.phase==='gf');
   const isCom = S.role==='committee';
   const myTeam = myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId)) : null;
   let html = '';
 
-  // Champion banner
-  if (gfMatch?.status==='complete') {
-    const w = S.teams.find(t=>t.id===(gfMatch.winner==='A'?gfMatch.teamA:gfMatch.teamB));
-    html = `<div class="champion-banner"><div style="font-size:44px;">🥇</div><div style="font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:3px;color:var(--gold);margin:4px 0 2px;">Champion</div><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;">${w?.name}</div></div>`;
+  // Champion/placement banners
+  const gfMatch = S.matches.find(m=>m.phase==='gf'&&m.status==='complete');
+  const brMatch = S.matches.find(m=>m.phase==='bronze'&&m.status==='complete');
+  if (gfMatch) {
+    const gold   = S.teams.find(t=>t.id===(gfMatch.winner==='A'?gfMatch.teamA:gfMatch.teamB));
+    const silver = S.teams.find(t=>t.id===(gfMatch.winner==='A'?gfMatch.teamB:gfMatch.teamA));
+    html += `<div class="champion-banner" style="margin-bottom:8px;">
+      <div style="font-size:36px;">🥇</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:3px;color:var(--gold);margin:3px 0 1px;">Champion</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;">${gold?.name}</div>
+      ${silver?`<div style="font-size:12px;color:var(--muted);margin-top:2px;">🥈 2nd: ${silver.name}</div>`:''}
+      ${brMatch?`<div style="font-size:12px;color:var(--muted);">🥉 3rd: ${S.teams.find(t=>t.id===(brMatch.winner==='A'?brMatch.teamA:brMatch.teamB))?.name||''}</div>`:''}
+    </div>`;
   }
 
-  // ── RR standings table (compact) ─────────────────────────────────
-  const rrDone = S.matches.filter(m=>m.phase==='rr'&&m.status==='complete').length;
-  const rrTotal = S.matches.filter(m=>m.phase==='rr').length;
-  const standings = getRRStandings();
-  html += `<div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;">Round Robin <span style="font-size:11px;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:400;">${rrDone}/${rrTotal} matches played</span></div>`;
-  html += `<div style="background:var(--navy2);border-radius:var(--r);margin-bottom:16px;overflow:hidden;">`;
-  html += `<div style="display:grid;grid-template-columns:24px 1fr 28px 28px 36px;padding:5px 10px;font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">
-    <span>#</span><span>Team</span><span style="text-align:center">W</span><span style="text-align:center">P</span><span style="text-align:right">±</span></div>`;
-  standings.forEach((s,i)=>{
-    const isMe = myTeam && s.team.id === myTeam.id;
-    const advanceBadge = rrDone===rrTotal && i<4 ? `<span class="badge badge-green" style="font-size:9px;margin-left:4px;">→ SF</span>` : '';
-    html += `<div style="display:grid;grid-template-columns:24px 1fr 28px 28px 36px;padding:7px 10px;align-items:center;${i%2===0?'background:rgba(255,255,255,.02)':''}${isMe?';outline:1px solid rgba(201,162,39,.3);background:rgba(201,162,39,.06)':''};">
-      <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:${i<4?'var(--gold)':'var(--muted)'};">${i+1}</span>
-      <span style="font-size:13px;font-weight:500;${isMe?'color:var(--gold)':''}">${s.team.name}${isMe?' ★':''}${advanceBadge}</span>
-      <span style="text-align:center;font-weight:500;">${s.wins}</span>
-      <span style="text-align:center;color:var(--muted);font-size:12px;">${s.played}</span>
-      <span style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;color:${s.diff>=0?'#2ecc71':'#e74c3c'}">${s.diff>0?'+':''}${s.diff}</span>
-    </div>`;
-  });
-  html += `</div>`;
-
-  // ── DE rounds (SF + GF) ────────────────────────────────────────
-  const dePhases = [
-    { phase: 'sf', label: 'Semi-Finals (1v4, 2v3)' },
-    { phase: 'gf', label: 'Grand Final' }
-  ];
-  dePhases.forEach(({phase, label}) => {
-    const phaseMatches = S.matches.filter(m=>m.phase===phase);
+  // Render each bracket round
+  S.bracket.forEach(br => {
+    const phaseMatches = br.matchIds.map(id => S.matches.find(m=>m.id===id)).filter(Boolean);
     if (!phaseMatches.length) return;
     const currentPts = phaseMatches[0]?.target || 30;
-    const canOverride = isCom && phaseMatches.some(m=>m.status!=='complete');
+    const isPlacement = ['sf','bronze','gf','finals'].includes(br.phase);
+    const canOverride = isCom && isPlacement && phaseMatches.some(m=>m.status!=='complete');
     const overrideBtn = canOverride
       ? `<span style="margin-left:8px;font-size:11px;color:var(--purple2);cursor:pointer;text-decoration:underline;"
-           onclick="overrideMatchTarget('${phase}',${currentPts===30?45:30})"
+           onclick="overrideMatchTarget('${br.phase}',${currentPts===30?45:30})"
          >${currentPts===30?'→ 45pts':'→ 30pts'}</span>`
-      : `<span style="font-size:11px;color:var(--muted);margin-left:8px;">${currentPts}pts</span>`;
-    html += `<div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;">${label}${overrideBtn}</div>`;
+      : `<span style="font-size:11px;color:var(--muted);margin-left:6px;">${currentPts}pts</span>`;
+    html += `<div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;margin-top:4px;">${br.label}${overrideBtn}</div>`;
     phaseMatches.forEach(m => {
       const tA=S.teams.find(t=>t.id===m.teamA), tB=S.teams.find(t=>t.id===m.teamB);
       const nA=tA?.name||(m.teamA?.toString().startsWith('TBD')?'TBD':'?');
       const nB=tB?.name||(m.teamB?.toString().startsWith('TBD')?'TBD':'?');
       const sc=m.status==='live'?'live':m.status==='complete'?'complete':'';
-      const isMyMatch = myTeam && (myTeam.id===m.teamA || myTeam.id===m.teamB);
-      const canReassign = isCom && m.status !== 'live' && m.status !== 'complete';
+      const isMyMatch = myTeam && (myTeam.id===m.teamA||myTeam.id===m.teamB);
+      const isBronze = m.phase==='bronze';
+      const canReassign = isCom && m.status!=='live' && m.status!=='complete';
       html+=`<div class="bracket-match ${sc}" style="${isMyMatch?'border-color:var(--gold);':''}margin-bottom:8px;">
+        ${isBronze?`<div style="font-size:10px;color:var(--muted);padding:4px 12px 0;text-align:center;letter-spacing:.08em;text-transform:uppercase;">🥉 Bronze Final — 3rd place</div>`:''}
         <div class="bracket-team-row ${m.status==='complete'&&m.winner==='A'?'winner':''}">
           <span class="seed">A</span>
           <span class="bname" style="${myTeam&&myTeam.id===m.teamA?'color:var(--gold);font-weight:600;':''}">${nA}${myTeam&&myTeam.id===m.teamA?' ★':''}</span>
@@ -2858,40 +3025,41 @@ function renderBracket() {
 function renderStandings() {
   const el=document.getElementById('standingsContent');
   if (!S.started){el.innerHTML=emptyState('📊','Start competition to see standings');return;}
-  const stats = getRRStandings();
-  const rrDone = S.matches.filter(m=>m.phase==='rr'&&m.status==='complete').length;
-  const rrTotal = S.matches.filter(m=>m.phase==='rr').length;
-  const phase = rrDone < rrTotal ? 'Round Robin' :
-    S.matches.some(m=>m.phase==='sf'&&m.status!=='complete') ? 'Semi-Finals' :
-    S.matches.some(m=>m.phase==='gf'&&m.status!=='complete') ? 'Grand Final' : 'Complete';
+  const stats = getDEStandings();
+  // Current phase
+  const liveMatch = S.matches.find(m=>m.status==='live');
+  const phaseLabel = liveMatch
+    ? ({'r1':'Round 1','r2':'Round 2','r3':'Quarter-Finals','sf':'Semi-Finals','bronze':'Bronze Final','gf':'Gold Final'}[liveMatch.phase] || liveMatch.phase)
+    : (S.matches.every(m=>m.status==='complete'||m.status==='waiting') && S.matches.some(m=>m.status==='complete') ? 'Complete' : 'In Progress');
+  const totalMatches = S.matches.filter(m=>m.status!=='waiting').length;
+  const doneMatches  = S.matches.filter(m=>m.status==='complete').length;
   let html=`<div class="section-head">Standings</div>
     <div class="card" style="padding:10px 12px;margin-bottom:12px;">
-      <div class="info-row"><span class="lbl">Format</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">${S.format?.points}pts · RR → Top 4 → Final</span></div>
-      <div class="info-row"><span class="lbl">Phase</span><span style="color:var(--blue2);font-family:'DM Mono',monospace;">${phase}</span></div>
-      <div class="info-row"><span class="lbl">RR progress</span><span style="font-family:'DM Mono',monospace;">${rrDone} / ${rrTotal} matches</span></div>
+      <div class="info-row"><span class="lbl">Format</span><span style="color:var(--gold);font-family:'DM Mono',monospace;">${S.format?.structure||'DE'}</span></div>
+      <div class="info-row"><span class="lbl">Phase</span><span style="color:var(--blue2);font-family:'DM Mono',monospace;">${phaseLabel}</span></div>
+      <div class="info-row"><span class="lbl">Progress</span><span style="font-family:'DM Mono',monospace;">${doneMatches} / ${totalMatches} matches</span></div>
       <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;gap:14px;font-size:11px;color:var(--muted);">
         <span><span style="color:var(--white);font-weight:500;">W</span> — Wins</span>
-        <span><span style="color:var(--white);font-weight:500;">P</span> — Matches played</span>
-        <span><span style="color:var(--white);font-weight:500;">±</span> — Point differential</span>
+        <span><span style="color:var(--white);font-weight:500;">P</span> — Played</span>
+        <span><span style="color:var(--white);font-weight:500;">±</span> — Indicator (FIE)</span>
       </div>
     </div>`;
   const myTeamId = myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId))?.id : null;
-  const ranks = stats.map((s, i) => {
-    if (i === 0) return 1;
-    const prev = stats[i-1];
-    if (s.wins === prev.wins && s.diff === prev.diff && s.scored === prev.scored) return ranks[i-1];
-    return i + 1;
-  });
+  const medals = {1:'🥇',2:'🥈',3:'🥉'};
+  const roundNames = {'r1':'R1','r2':'R2','r3':'QF','r4':'R4','sf':'SF','bronze':'Bronze','gf':'Final'};
   stats.forEach((s,i)=>{
-    const rank = ranks[i];
     const isMe = s.team.id === myTeamId;
     const live = S.matches.find(m=>(m.teamA===s.team.id||m.teamB===s.team.id)&&m.status==='live');
-    const advBadge = rrDone===rrTotal && i<4 ? `<span class="badge badge-green" style="font-size:9px;margin-left:4px;">→ SF</span>` : '';
+    const medal = medals[s.placement] || '';
+    const rankDisp = s.placement ? `${medal}` : `${i+1}`;
+    const rankColour = s.placement===1?'var(--gold)':s.placement===2?'#b0b8c0':s.placement===3?'#cd7f32':'var(--muted)';
+    const deepLabel = roundNames[s.deepest] || '';
     html+=`<div class="standings-row" style="${isMe?'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.25);border-radius:8px;':''}">
-      <span class="st-rank ${rank<=4?'top':''}">${rank}</span>
+      <span class="st-rank" style="color:${rankColour};font-size:${s.placement?'20px':'18px'};">${rankDisp}</span>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:500;${isMe?'color:var(--gold);':''}">${s.team.name}${isMe?' ★':''}${advBadge}</div>
-        ${live?`<div style="font-size:10px;color:var(--gold);">● LIVE Piste ${live.piste}</div>`:''}
+        <div style="font-size:13px;font-weight:500;${isMe?'color:var(--gold);':''}">${s.team.name}${isMe?' ★':''}</div>
+        ${live?`<div style="font-size:10px;color:var(--gold);">● LIVE Piste ${live.piste}</div>`
+             :deepLabel?`<div style="font-size:10px;color:var(--muted);">reached ${deepLabel}</div>`:''}
       </div>
       <div class="st-stats">
         <span><span class="val">${s.wins}</span><span class="lbl">W</span></span>
