@@ -1631,17 +1631,26 @@ function teamWorth(t) {
 // ════════════════════════════════════════════════════════════════
 
 // Find best team count: any count (odd or even), max 4 per team, max 16 teams
+// Prefer even team counts with 3-4 fencers each. Allow odd if no even works. Max 16 teams.
 function calcTeamCount(n) {
-  const maxTeams = Math.min(Math.floor(n / 3), 16);
-  for (let t = maxTeams; t >= 2; t--) {
+  // Pass 1: try even counts — preferred
+  for (let t = 16; t >= 2; t -= 2) {
     if (Math.floor(n/t) >= 3 && Math.ceil(n/t) <= 4) return t;
   }
-  return 2;
+  // Pass 2: allow odd counts (e.g. 9→3 teams, 10→2... but 3 teams not ideal)
+  for (let t = 15; t >= 3; t -= 2) {
+    if (Math.floor(n/t) >= 3 && Math.ceil(n/t) <= 4) return t;
+  }
+  // Fallback: smallest viable even count
+  return n >= 8 ? 4 : 2;
 }
 
-// Returns { base, extras } where extras teams get a 4th fencer
+// Returns { base, extras } — extras teams get (base+1) fencers
+// e.g. 14 fencers, 4 teams → base=3, extras=2 → 2 teams of 4, 2 teams of 3
 function calcTeamSizes(n, numTeams) {
-  return { base: Math.floor(n / numTeams), extras: n % numTeams };
+  const base   = Math.floor(n / numTeams);
+  const extras = n % numTeams; // these teams get base+1
+  return { base, extras };
 }
 
 // Pool structure: every pool has 3-4 teams; handles odd team counts
@@ -1723,14 +1732,24 @@ function generateTeams() {
 
   const numTeams = calcTeamCount(valid.length);
   S.format = calcFormat(numTeams);
-  const profile = S.format.profile;  const names = ['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India','Juliet','Kilo','Lima'];
-  S.teams = Array.from({length: numTeams}, (_, i) => ({ id: tId++, name: names[i], fencers: [] }));
+  const profile = S.format.profile;
+  const NATO = ['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India','Juliet','Kilo','Lima','Mike','November','Oscar','Papa','Quebec','Romeo','Sierra','Tango','Uniform','Victor','Whiskey','X-ray','Yankee','Zulu'];
+  S.teams = Array.from({length: numTeams}, (_, i) => ({ id: tId++, name: NATO[i] || `Team ${i+1}`, fencers: [] }));
 
-  // Determine target size per team: base=3, some teams get 4
+  // Determine target size per team
+  // extras teams get 4 fencers; the rest get base (3)
+  // Distribute the 4-fencer slots to teams by worth AFTER assignment (handled in pass 3)
   const { base, extras } = calcTeamSizes(valid.length, numTeams);
-  // Teams with index < extras get size (base+1), rest get base
-  // Sort teams so lowest-worth get the extra fencer (4th slot goes to weakest teams)
-  const maxSize = (i) => i < extras ? base + 1 : base;
+  // maxSize(idx): how many fencers should this team slot hold?
+  // We want extras teams to reach 4. Assign the 4-slots to the teams that end up with
+  // lowest worth after pass 1+2 (handled dynamically in pass 3).
+  // Simple approach: first extras teams get capacity 4, rest get base.
+  const maxSize = (t) => {
+    // Sort by current worth ascending; give the 4-slot to the weakest teams
+    const ranked = [...S.teams].sort((a,b) => teamWorth(a)-teamWorth(b));
+    const rank = ranked.indexOf(t);
+    return rank < extras ? base + 1 : base;
+  };
 
   // Shuffle within skill tiers
   const ints = shuffle(valid.filter(f => f.level === 'intermediate'));
@@ -1754,15 +1773,12 @@ function generateTeams() {
   // Pass 3: worth-based fill — assign remaining to lowest-worth team that still has room
   const remaining = [...intPool, ...lowerPool].sort((a,b) => fencerWorth(b)-fencerWorth(a));
   remaining.forEach(f => {
-    // Determine capacity for each team based on target size
-    // Teams sorted by worth: lowest-worth gets 4-person slot first
-    const sortedByWorth = [...S.teams].sort((a,b)=>teamWorth(a)-teamWorth(b));
+    const sortedByWorth = [...S.teams].sort((a,b) => teamWorth(a)-teamWorth(b));
     let target = null;
     for (const t of sortedByWorth) {
-      const idx = S.teams.indexOf(t);
-      if (t.fencers.length < maxSize(idx)) { target = t; break; }
+      if (t.fencers.length < maxSize(t)) { target = t; break; }
     }
-    if (!target) target = S.teams.reduce((a,b)=>a.fencers.length<=b.fencers.length?a:b);
+    if (!target) target = S.teams.reduce((a,b) => a.fencers.length <= b.fencers.length ? a : b);
     target.fencers.push(f.id);
   });
 
