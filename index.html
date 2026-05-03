@@ -1285,11 +1285,27 @@ function removeFencer(id) {
   const f = S.fencers.find(x => x.id === id);
   if (!f) return;
   if (S.role === 'committee' || S.role === 'referee') {
+    // Find which team this fencer is on before removing
+    const teamWithFencer = S.teams.find(t => t.fencers.includes(id));
     S.fencers = S.fencers.filter(x => x.id !== id);
     S.compRegistry = S.compRegistry.filter(r => r.id !== id && r.name.toLowerCase() !== f.name.toLowerCase());
+    // Remove from team
+    if (teamWithFencer) {
+      teamWithFencer.fencers = teamWithFencer.fencers.filter(fid => fid !== id);
+      // Reshuffle bouts for their team if competition is running
+      if (S.started && teamWithFencer.fencers.length > 0) {
+        reshuffleAllTeamBouts(teamWithFencer.id);
+        showToast(`${f.name} removed — pending bouts reshuffled`);
+      } else {
+        showToast(`${f.name} removed`);
+      }
+    } else {
+      showToast(`${f.name} removed`);
+    }
     saveRegistry(); pushState();
     renderFencers(); updateGenCard();
-    showToast(`${f.name} removed & deregistered`);
+    renderTeamsPreview();
+    if (S.started) { renderMatches(); if (S.currentTab==='scoring'&&S.activeMatchId) renderScoring(); }
   } else {
     showToast('You can only remove yourself');
   }
@@ -2597,30 +2613,93 @@ function confirmMoveFencer() {
   const destTeam = S.teams.find(t => t.id === destId);
   if (!fromTeam || !destTeam) return;
 
+  const affectedTeams = new Set([fromTeamId, destId]);
+
   if (swapFencerId) {
-    // Swap the two fencers between teams
     fromTeam.fencers = fromTeam.fencers.filter(id => id !== fencerId);
     destTeam.fencers = destTeam.fencers.filter(id => id !== swapFencerId);
     fromTeam.fencers.push(swapFencerId);
     destTeam.fencers.push(fencerId);
     const f1 = S.fencers.find(f => f.id === fencerId)?.name || '?';
     const f2 = S.fencers.find(f => f.id === swapFencerId)?.name || '?';
-    showToast(`Swapped: ${f1} ↔ ${f2}`);
+    showToast(`Swapped: ${f1} ↔ ${f2} — bouts updated`);
   } else {
-    // Just move
     fromTeam.fencers = fromTeam.fencers.filter(id => id !== fencerId);
     destTeam.fencers.push(fencerId);
     const f1 = S.fencers.find(f => f.id === fencerId)?.name || '?';
-    showToast(`${f1} → ${destTeam.name}`);
+    showToast(`${f1} → ${destTeam.name} — bouts updated`);
+  }
+
+  // Re-run bout assignments for all affected team matches
+  if (S.started) {
+    affectedTeams.forEach(tid => reshuffleAllTeamBouts(tid));
   }
 
   moveFencerContext = null;
   pushState();
   closeModal('moveFencerModal');
   renderTeamsPreview();
+  renderMatches();
+  if (S.currentTab === 'scoring' && S.activeMatchId) renderScoring();
   updateGenCard();
 }
 
+// ── Reshuffle pending bouts after team roster change ─────────────
+function reshuffleAllTeamBouts(teamId) {
+  const team = S.teams.find(t => t.id === teamId);
+  if (!team) return;
+
+  // Matches involving this team that aren't complete or waiting
+  const matches = S.matches.filter(m =>
+    (m.teamA === teamId || m.teamB === teamId) &&
+    m.status !== 'complete' && m.status !== 'waiting' &&
+    m.bouts && m.bouts.length
+  );
+
+  function orderedFencers(t) {
+    const fs = t.fencers.map(id => S.fencers.find(f => f.id === id)).filter(Boolean);
+    return [...fs.filter(f => f.level === 'intermediate'), ...fs.filter(f => f.level !== 'intermediate')];
+  }
+  function getFencer(fencers, boutIdx) {
+    if (!fencers.length) return null;
+    if (fencers.length === 4) {
+      const order4 = [0,1,2,3,1,0,0,1,2];
+      return fencers[order4[boutIdx % order4.length]];
+    }
+    return fencers[boutIdx % fencers.length];
+  }
+
+  matches.forEach(m => {
+    const side = m.teamA === teamId ? 'A' : 'B';
+    const tA = S.teams.find(t => t.id === m.teamA);
+    const tB = S.teams.find(t => t.id === m.teamB);
+    if (!tA || !tB) return;
+
+    const fA = orderedFencers(tA);
+    const fB = orderedFencers(tB);
+
+    // If match hasn't started at all (all bouts pending/active but none done) — reinit fully
+    const hasDone = m.bouts.some(b => b.status === 'done');
+    if (!hasDone) {
+      // Preserve active bout's score, just update fencer names
+      const wasActive = m.bouts.find(b => b.status === 'active');
+      initBouts(m);
+      // Re-mark which bout is active (initBouts sets all to pending after first)
+      if (wasActive) {
+        const boutIdx = wasActive.boutNum - 1;
+        if (m.bouts[boutIdx]) m.bouts[boutIdx].status = 'active';
+      }
+      return;
+    }
+
+    // Partially done match — only update pending bouts
+    m.bouts.forEach((b, i) => {
+      if (b.status !== 'pending') return;
+      b.fencerA = getFencer(fA, i)?.name || '?';
+      b.fencerB = getFencer(fB, i)?.name || '?';
+    });
+  });
+}
 
 // ── Piste edit (referee / committee) ─────────────────────────
 function openPisteEdit(matchId) {
