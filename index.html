@@ -450,7 +450,8 @@ select option{background:var(--navy2);}
     <div class="modal-title">Select role</div>
     <p class="text-muted" style="margin-bottom:12px;font-size:12px;">No role? Just close this — you'll have spectator view by default.</p>
     <div style="display:flex;flex-direction:column;gap:8px;">
-      <button class="btn btn-primary btn-block btn-lg" onclick="openCompCheckIn()">🤺 Check in</button>
+      <button class="btn btn-primary btn-block btn-lg" onclick="openCompCheckIn()">🤺 Check in — first time today</button>
+      <button class="btn btn-ghost btn-block btn-lg" onclick="openCompLogin()">👋 Already checked in — log in</button>
       <button class="btn btn-gold btn-block btn-lg" onclick="promptPin('referee')">⚖ Referee <span style="font-size:11px;opacity:.7;">— PIN required</span></button>
       <button class="btn btn-purple btn-block btn-lg" onclick="promptPin('committee')">🛡 Committee <span style="font-size:11px;opacity:.7;">— PIN required</span></button>
       <div id="logoutRow" style="display:none;border-top:1px solid var(--border);padding-top:8px;">
