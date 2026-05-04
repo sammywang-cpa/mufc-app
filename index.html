@@ -1631,17 +1631,18 @@ function teamWorth(t) {
 // ════════════════════════════════════════════════════════════════
 
 // Find best team count: any count (odd or even), max 4 per team, max 16 teams
-// Prefer even team counts with 3-4 fencers each. Allow odd if no even works. Max 16 teams.
+// Prefer FEWER teams with MORE fencers (4 per team is better than 3).
+// Iterate from smallest team count upward so we pick the fewest teams
+// that still keep every team at 3-4 fencers. Even counts preferred.
 function calcTeamCount(n) {
-  // Pass 1: try even counts — preferred
-  for (let t = 16; t >= 2; t -= 2) {
+  // Even counts first (preferred for bracket symmetry)
+  for (let t = 2; t <= 16; t += 2) {
     if (Math.floor(n/t) >= 3 && Math.ceil(n/t) <= 4) return t;
   }
-  // Pass 2: allow odd counts (e.g. 9→3 teams, 10→2... but 3 teams not ideal)
-  for (let t = 15; t >= 3; t -= 2) {
+  // Odd fallback (e.g. 9→3 teams, 17→5 teams)
+  for (let t = 3; t <= 15; t += 2) {
     if (Math.floor(n/t) >= 3 && Math.ceil(n/t) <= 4) return t;
   }
-  // Fallback: smallest viable even count
   return n >= 8 ? 4 : 2;
 }
 
