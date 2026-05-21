@@ -593,19 +593,32 @@ select option{background:var(--navy2);}
 <div class="modal-overlay" id="boutEditModal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title" id="boutEditTitle">Edit Bout Score</div>
+    <div class="modal-title" id="boutEditTitle">Edit Bout</div>
     <p class="text-muted" style="margin-bottom:14px;" id="boutEditSub"></p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+
+    <div class="section-head" style="margin-top:0;">Scores</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
       <div>
         <label id="boutEditLabelA">Team A</label>
-        <input type="number" id="boutEditPtsA" min="0" max="5" style="font-size:22px;text-align:center;padding:12px;">
+        <input type="number" id="boutEditPtsA" min="0" max="9" style="font-size:22px;text-align:center;padding:12px;">
       </div>
       <div>
         <label id="boutEditLabelB">Team B</label>
-        <input type="number" id="boutEditPtsB" min="0" max="5" style="font-size:22px;text-align:center;padding:12px;">
+        <input type="number" id="boutEditPtsB" min="0" max="9" style="font-size:22px;text-align:center;padding:12px;">
       </div>
     </div>
-    <p class="text-muted" style="font-size:11px;margin-bottom:14px;">Match running total will be recalculated automatically.</p>
+    <p class="text-muted" style="font-size:11px;margin-bottom:14px;">Match running total recalculates automatically.</p>
+
+    <div class="section-head">Cards</div>
+    <div id="boutEditCardsDisplay" style="min-height:28px;margin-bottom:8px;font-size:13px;color:var(--muted);"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:6px;">
+      <button class="btn" id="boutEditYA" style="background:rgba(255,204,0,.2);border:2px solid rgba(255,204,0,.6);color:#f0c000;padding:8px 4px;font-size:13px;font-weight:700;" onclick="boutEditIssueCard('A','yellow')">🟨<br><span id="boutEditNameA" style="font-size:9px;"></span></button>
+      <button class="btn" id="boutEditRA" style="background:rgba(192,57,43,.2);border:2px solid rgba(192,57,43,.6);color:#e74c3c;padding:8px 4px;font-size:13px;font-weight:700;" onclick="boutEditIssueCard('A','red')">🟥<br><span style="font-size:9px;" id="boutEditNameA2"></span></button>
+      <button class="btn" id="boutEditYB" style="background:rgba(255,204,0,.2);border:2px solid rgba(255,204,0,.6);color:#f0c000;padding:8px 4px;font-size:13px;font-weight:700;" onclick="boutEditIssueCard('B','yellow')">🟨<br><span id="boutEditNameB" style="font-size:9px;"></span></button>
+      <button class="btn" id="boutEditRB" style="background:rgba(192,57,43,.2);border:2px solid rgba(192,57,43,.6);color:#e74c3c;padding:8px 4px;font-size:13px;font-weight:700;" onclick="boutEditIssueCard('B','red')">🟥<br><span style="font-size:9px;" id="boutEditNameB2"></span></button>
+    </div>
+    <button class="btn btn-ghost btn-sm btn-block" style="margin-bottom:14px;" onclick="boutEditUndoCard()">↩ Undo last card</button>
+
     <div style="display:flex;gap:8px;">
       <button class="btn btn-ghost btn-block" onclick="closeModal('boutEditModal')">Cancel</button>
       <button class="btn btn-primary btn-block" onclick="saveBoutEdit()">Save changes</button>
@@ -2387,9 +2400,9 @@ function renderScoring() {
   const compSwappedOut = isComp && myFencerId && m.compSwaps && m.compSwaps[myFencerId];
 
   const swapBtnA = (canSwapA && m.status!=='complete' && !compSwappedOut)
-    ? `<span style="font-size:11px;color:var(--blue2);cursor:pointer;text-decoration:underline;" onclick="openSwap(${m.id},${boutIdx},'A')">${isComp?'⇄ change':'⇄ swap'}</span>` : '';
+    ? `<span style="font-size:11px;color:var(--blue2);cursor:pointer;text-decoration:underline;" onclick="openSwap(${m.id},${boutIdx},'A')">${'⇄ change'}</span>` : '';
   const swapBtnB = (canSwapB && m.status!=='complete')
-    ? `<span style="font-size:11px;color:var(--blue2);cursor:pointer;text-decoration:underline;" onclick="openSwap(${m.id},${boutIdx},'B')">${isComp?'⇄ change':'⇄ swap'}</span>` : '';
+    ? `<span style="font-size:11px;color:var(--blue2);cursor:pointer;text-decoration:underline;" onclick="openSwap(${m.id},${boutIdx},'B')">${'⇄ change'}</span>` : '';
   const bailBtnA = '';
   const bailBtnB = '';
 
@@ -2484,7 +2497,7 @@ function renderScoring() {
       <div class="timer-display ${tc}" id="liveTimer_${m.id}" ${isPriv?`onclick="openTimerEdit(${m.id},${boutIdx})" title="Tap to set timer" style="cursor:pointer;"`:''}>${mins}:${secs}</div>
       ${isPriv?`
       <div style="display:flex;gap:7px;margin-bottom:8px;">
-        <button class="btn ${t.running?'btn-danger':'btn-primary'} btn-block" style="font-size:17px;padding:12px;font-family:'Bebas Neue',sans-serif;letter-spacing:1px;" onclick="toggleTimer(${m.id},${boutIdx})">${t.running?'⏸  PAUSE':'▶  START TIMER'}</button>
+        <button class="btn ${t.running?'btn-danger':'btn-primary'} btn-block" style="font-size:26px;padding:18px 12px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;border-radius:12px;margin-bottom:6px;box-shadow:${t.running?'0 0 20px rgba(192,57,43,.5)':'0 0 20px rgba(46,125,212,.4)'};" onclick="toggleTimer(${m.id},${boutIdx})">${t.running?'⏸  PAUSE':'▶  START TIMER'}</button>
         <button class="btn btn-ghost btn-sm" onclick="resetTimer(${m.id},${boutIdx})" style="flex-shrink:0;margin-top:4px;">↺ Reset</button>
       </div>
 
@@ -2526,25 +2539,48 @@ function renderScoring() {
       </div>
       `}
 
-      <div class="section-head">Bout Schedule ${isPriv?'<span style="font-size:10px;color:var(--muted);font-weight:400;">— tap a completed bout to edit</span>':''}</div>
+      <div class="section-head">Bout Schedule
+        ${isPriv?'<span style="font-size:10px;color:var(--muted);font-weight:400;">— ✎ tap to edit scores/cards · pending tap to change fencer</span>':''}
+        ${isComp?'<span style="font-size:10px;color:var(--muted);font-weight:400;">— tap pending bouts to change fencer</span>':''}
+      </div>
       ${(()=>{
         const myName = myFencerId ? S.fencers.find(f=>f.id===myFencerId)?.name : null;
+        const myTeam = isComp && myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId)) : null;
         return m.bouts.map((b, bi)=>{
           const isMine = myName && (b.fencerA===myName || b.fencerB===myName);
-          const canEdit = isPriv && b.status==='done';
+          const canEditDone    = isPriv && b.status==='done';
+          const myTeamSide     = myTeam ? (m.teamA===myTeam.id?'A':m.teamB===myTeam.id?'B':null) : null;
+          // Pending bouts: priv can change fencer; competitor can change fencer on their team's side
+          const canChangePending = b.status==='pending' && (isPriv || (isComp && myTeamSide));
+          const clickable = canEditDone || canChangePending;
+          // Determine onclick action
+          let clickAction = '';
+          if (canEditDone) {
+            clickAction = `openBoutEdit(${m.id},${bi})`;
+          } else if (canChangePending) {
+            // Open change fencer for whichever side belongs to the user (or A for priv)
+            const side = isComp ? myTeamSide : 'A';
+            clickAction = `openSwap(${m.id},${bi},'${side}')`;
+          }
           const boutCards = (b.cards||[]).map(c=>
             `<span title="${c.type} card">${c.type==='yellow'?'🟨':'🟥'}${c.side}</span>`
           ).join(' ');
+          let badge = '';
+          if (b.status==='done') badge = `<span class="badge ${canEditDone?'badge-blue':'badge-muted'}" style="font-size:9px;margin-left:3px;">${canEditDone?'✎':'✓'}</span>`;
+          else if (b.status==='active') badge = `<span class="badge badge-gold" style="font-size:9px;margin-left:3px;">●</span>`;
+          else if (canChangePending) badge = `<span style="font-size:9px;color:var(--blue2);margin-left:3px;">⇄</span>`;
+          else badge = `<span class="badge badge-muted" style="font-size:9px;margin-left:3px;">–</span>`;
+
           return `<div class="bout-row" 
-            style="${isMine?'background:rgba(201,162,39,.08);border-radius:6px;padding:5px 6px;border:1px solid rgba(201,162,39,.2);margin-bottom:3px;':''}${canEdit?'cursor:pointer;':''}"
-            onclick="${canEdit?'openBoutEdit('+m.id+','+bi+')':''}"
+            style="${isMine?'background:rgba(201,162,39,.08);border-radius:6px;padding:5px 6px;border:1px solid rgba(201,162,39,.2);margin-bottom:3px;':''}${clickable?'cursor:pointer;':''}"
+            onclick="${clickAction}"
           >
             <span class="bout-fencer ${b.status==='active'?'active':''}" style="${isMine&&b.fencerA===myName?'color:var(--gold);font-weight:600;':''}">${b.fencerA}${isMine&&b.fencerA===myName?' ★':''}</span>
             <span class="bout-pts a">${b.ptsA}</span>
             <span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;">B${b.boutNum}<br><span style="color:var(--gold);font-size:9px;">→${b.boutNum*5}pts</span>${boutCards?'<br>'+boutCards:''}</span>
             <span class="bout-pts b">${b.ptsB}</span>
             <span class="bout-fencer ${b.status==='active'?'active':''}" style="text-align:right;${isMine&&b.fencerB===myName?'color:var(--gold);font-weight:600;':''}">${b.fencerB}${isMine&&b.fencerB===myName?' ★':''}</span>
-            <span class="badge ${b.status==='done'?(canEdit?'badge-blue':'badge-muted'):b.status==='active'?'badge-gold':'badge-muted'}" style="font-size:9px;margin-left:3px;">${b.status==='done'?(canEdit?'✎':'✓'):b.status==='active'?'●':'–'}</span>
+            ${badge}
           </div>`;
         }).join('');
       })()}
@@ -2936,17 +2972,77 @@ function openBoutEdit(matchId, boutIdx) {
   const m = S.matches.find(x=>x.id===matchId);
   if (!m) return;
   const b = m.bouts[boutIdx];
-  if (!b||b.status!=='done') return;
+  if (!b) return;
   const tA = S.teams.find(t=>t.id===m.teamA);
   const tB = S.teams.find(t=>t.id===m.teamB);
   boutEditContext = { matchId, boutIdx };
+
   document.getElementById('boutEditTitle').textContent = `Edit Bout ${b.boutNum}`;
   document.getElementById('boutEditSub').textContent = `${b.fencerA} vs ${b.fencerB}`;
   document.getElementById('boutEditLabelA').textContent = `${tA?.name} — ${b.fencerA}`;
   document.getElementById('boutEditLabelB').textContent = `${tB?.name} — ${b.fencerB}`;
   document.getElementById('boutEditPtsA').value = b.ptsA;
   document.getElementById('boutEditPtsB').value = b.ptsB;
+
+  // Populate fencer name labels on card buttons
+  const nameA = b.fencerA || tA?.name || 'A';
+  const nameB = b.fencerB || tB?.name || 'B';
+  ['boutEditNameA','boutEditNameA2'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=nameA; });
+  ['boutEditNameB','boutEditNameB2'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=nameB; });
+
+  renderBoutEditCards();
   openModal('boutEditModal');
+}
+
+function renderBoutEditCards() {
+  if (!boutEditContext) return;
+  const { matchId, boutIdx } = boutEditContext;
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m) return;
+  const b = m.bouts[boutIdx];
+  const cards = b.cards || [];
+  const el = document.getElementById('boutEditCardsDisplay');
+  if (!el) return;
+  if (!cards.length) {
+    el.textContent = 'No cards issued in this bout.';
+    return;
+  }
+  el.innerHTML = cards.map((c,i) =>
+    `<span style="margin-right:8px;">${c.type==='yellow'?'🟨':'🟥'} ${c.side==='A'?b.fencerA:b.fencerB}</span>`
+  ).join('');
+}
+
+function boutEditIssueCard(side, cardType) {
+  if (!boutEditContext) return;
+  const { matchId, boutIdx } = boutEditContext;
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m) return;
+  const b = m.bouts[boutIdx];
+  if (!b.cards) b.cards = [];
+  b.cards.push({ side, type: cardType, boutNum: b.boutNum });
+  // Red card: adjust scores
+  if (cardType === 'red') {
+    const oppSide = side === 'A' ? 'B' : 'A';
+    if (oppSide === 'A') { b.ptsA++; m.scoreA++; document.getElementById('boutEditPtsA').value = b.ptsA; }
+    else                 { b.ptsB++; m.scoreB++; document.getElementById('boutEditPtsB').value = b.ptsB; }
+  }
+  renderBoutEditCards();
+}
+
+function boutEditUndoCard() {
+  if (!boutEditContext) return;
+  const { matchId, boutIdx } = boutEditContext;
+  const m = S.matches.find(x=>x.id===matchId);
+  if (!m) return;
+  const b = m.bouts[boutIdx];
+  if (!b.cards || !b.cards.length) { showToast('No cards to remove'); return; }
+  const last = b.cards.pop();
+  if (last.type === 'red') {
+    const oppSide = last.side === 'A' ? 'B' : 'A';
+    if (oppSide === 'A' && b.ptsA > 0 && m.scoreA > 0) { b.ptsA--; m.scoreA--; document.getElementById('boutEditPtsA').value = b.ptsA; }
+    else if (oppSide === 'B' && b.ptsB > 0 && m.scoreB > 0) { b.ptsB--; m.scoreB--; document.getElementById('boutEditPtsB').value = b.ptsB; }
+  }
+  renderBoutEditCards();
 }
 
 function saveBoutEdit() {
@@ -3157,7 +3253,7 @@ function openSwap(matchId, boutIdx, side) {
   // Hide manual name input for competitors
   const manualRow = document.getElementById('swapManual')?.closest('.form-group');
   if (manualRow) manualRow.style.display = isComp ? 'none' : 'block';
-  document.getElementById('swapModalTitle').textContent = isComp ? 'Change Fencer' : `Change ${side==='A'?'Team A':'Team B'} Fencer`;
+  document.getElementById('swapModalTitle').textContent = 'Change Fencer';
   document.getElementById('swapModalSub').textContent = `Currently: ${currentName}`;
   document.getElementById('swapScopeInfo').textContent =
     futureBouts.length > 0
