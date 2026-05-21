@@ -1833,195 +1833,284 @@ function nextPow2(n) {
 function buildBracket(numTeams) {
   S.matches = []; S.bracket = [];
   const PISTES = [1,2,3,4,5];
+  if (numTeams === 10) { build10TeamBracket(PISTES); return; }
+
+  // Standard DE for all other sizes
   const bracketSize = nextPow2(numTeams);
-  const numRounds = Math.log2(bracketSize);
-
-  // ── Step 1: Sort teams into seeded order ──────────────────────────
-  // Group by worth score, shuffle within each group, then flatten
   const worthGroups = {};
-  S.teams.forEach(t => {
-    const w = teamWorth(t);
-    if (!worthGroups[w]) worthGroups[w] = [];
-    worthGroups[w].push(t);
-  });
-  // Shuffle each tied group (fair random draw for equal-worth teams)
+  S.teams.forEach(t => { const w=teamWorth(t); if(!worthGroups[w])worthGroups[w]=[]; worthGroups[w].push(t); });
   Object.values(worthGroups).forEach(g => shuffle(g));
-  // Flatten sorted desc by worth → seeded list
-  const seeded = Object.keys(worthGroups)
-    .sort((a,b) => b-a)
-    .flatMap(w => worthGroups[w]);
+  const seeded = Object.keys(worthGroups).sort((a,b)=>b-a).flatMap(w=>worthGroups[w]);
 
-  // ── Step 2: Place seeds into standard bracket positions ──────────
-  // Standard tournament seeding for bracket of size N:
-  // Builds pairings so: seed1 vs seedN, seed2 vs seedN-1...
-  // and they can only meet in the final.
-  // Algorithm: recursively place seeds into bracket halves.
   function buildSeedOrder(n) {
-    if (n === 2) return [1, 2];
-    const half = n / 2;
-    const top = buildSeedOrder(half);
-    // For each position in the top half, the opponent is n+1-seed
-    const result = [];
-    top.forEach(s => {
-      result.push(s);
-      result.push(n + 1 - s);
-    });
+    if (n===2) return [1,2];
+    const top=buildSeedOrder(n/2), result=[];
+    top.forEach(s=>{result.push(s);result.push(n+1-s);});
     return result;
   }
-  const seedOrder = buildSeedOrder(bracketSize); // e.g. [1,8,4,5,3,6,2,7] for 8
-  const slots = seedOrder.map(rank => seeded[rank - 1] || null); // null = bye
+  const slots = buildSeedOrder(bracketSize).map(rank=>seeded[rank-1]||null);
 
-  // ── Step 3: Build R1 matches ──────────────────────────────────────
-  let r1MatchIds = [];
-  let pisteIdx = 0;
-  const nextRoundSlots = [];
+  let r1MatchIds=[], pisteIdx=0, nextRoundSlots=[];
+  for (let i=0;i<bracketSize;i+=2) {
+    const tA=slots[i],tB=slots[i+1];
+    if (!tA&&!tB){nextRoundSlots.push(null);continue;}
+    if (!tB||!tA){nextRoundSlots.push({team:tA||tB,isBye:true});continue;}
+    const m={id:mId++,phase:'r1',round:1,piste:PISTES[pisteIdx%5],teamA:tA.id,teamB:tB.id,
+      bouts:[],scoreA:0,scoreB:0,target:30,status:'pending',winner:null};
+    S.matches.push(m);r1MatchIds.push(m.id);nextRoundSlots.push({matchId:m.id});pisteIdx++;
+  }
+  if (r1MatchIds.length) S.bracket.push({phase:'r1',label:'Round 1',matchIds:r1MatchIds});
 
-  for (let i = 0; i < bracketSize; i += 2) {
-    const tA = slots[i];
-    const tB = slots[i+1];
-    if (!tA && !tB) { nextRoundSlots.push(null); continue; }
-    if (!tB || !tA) {
-      // Bye: top seed advances automatically
-      const byeTeam = tA || tB;
-      nextRoundSlots.push({ team: byeTeam, isBye: true });
-      continue;
+  let currentSlots=nextRoundSlots,round=2;
+  const deLabels={2:'Round 2',4:'Quarter-Finals',8:'Round of 16'};
+  while (currentSlots.length>4) {
+    const roundMatchIds=[],nextSlots=[];
+    for (let i=0;i<currentSlots.length;i+=2) {
+      const sA=currentSlots[i],sB=currentSlots[i+1];
+      const tAid=sA?.team?.id||('TBD_r'+round+'_'+i);
+      const tBid=sB?.team?.id||('TBD_r'+round+'_'+(i+1));
+      const rdy=sA?.team&&sB?.team&&!sA?.matchId&&!sB?.matchId;
+      const m={id:mId++,phase:'r'+round,round,piste:PISTES[pisteIdx%5],
+        teamA:tAid,teamB:tBid,bouts:[],scoreA:0,scoreB:0,target:30,
+        status:rdy?'pending':'waiting',winner:null};
+      if (m.status==='pending') initBouts(m);
+      S.matches.push(m);roundMatchIds.push(m.id);nextSlots.push({matchId:m.id});pisteIdx++;
     }
-    const m = {
-      id: mId++, phase: 'r1', round: 1,
-      piste: PISTES[pisteIdx % 5],
-      teamA: tA.id, teamB: tB.id,
-      bouts: [], scoreA: 0, scoreB: 0, target: 30,
-      status: 'pending', winner: null
-    };
-    S.matches.push(m); r1MatchIds.push(m.id);
-    nextRoundSlots.push({ matchId: m.id });
-    pisteIdx++;
+    S.bracket.push({phase:'r'+round,label:deLabels[currentSlots.length]||('Round '+round),matchIds:roundMatchIds});
+    currentSlots=nextSlots;round++;
   }
-  if (r1MatchIds.length > 0) {
-    S.bracket.push({ phase: 'r1', label: 'Round 1', matchIds: r1MatchIds });
-  }
-
-  // Build subsequent DE rounds (R2, QF, SF)
-  // Track: { matchId } or { team, isBye } slots per round
-  let currentSlots = nextRoundSlots;
-  let round = 2;
-  const dePhaseLabels = { 2:'Round 2', 4:'Quarter-Finals', 8:'Round of 16' };
-
-  while (currentSlots.length > 4) {
-    const roundMatchIds = []; const nextSlots = [];
-    for (let i = 0; i < currentSlots.length; i += 2) {
-      const sA = currentSlots[i], sB = currentSlots[i+1];
-      const tAid = sA?.team?.id ? sA.team.id : ('TBD_r'+round+'_'+i);
-      const tBid = sB?.team?.id ? sB.team.id : ('TBD_r'+round+'_'+(i+1));
-      const isPending = sA?.team && sB?.team && !sA?.matchId && !sB?.matchId;
-      // If both are byes, auto-advance one
-      const m = {
-        id: mId++, phase: 'r'+round, round,
-        piste: PISTES[pisteIdx % 5],
-        teamA: tAid, teamB: tBid,
-        bouts: [], scoreA: 0, scoreB: 0, target: 30,
-        status: (sA?.team && sB?.team && !sA?.matchId && !sB?.matchId) ? 'pending' : 'waiting',
-        winner: null
-      };
-      if (m.status === 'pending') initBouts(m);
-      S.matches.push(m); roundMatchIds.push(m.id);
-      nextSlots.push({ matchId: m.id });
-      pisteIdx++;
-    }
-    const label = dePhaseLabels[currentSlots.length] || ('Round '+round);
-    S.bracket.push({ phase: 'r'+round, label, matchIds: roundMatchIds });
-    currentSlots = nextSlots;
-    round++;
-  }
-
-  // Semi-finals (always 45pts — placement round)
-  const sf1 = {
-    id: mId++, phase: 'sf', round,
-    piste: PISTES[pisteIdx%5], teamA: 'TBD_sf1a', teamB: 'TBD_sf1b',
-    bouts: [], scoreA: 0, scoreB: 0, target: 45,
-    status: 'waiting', winner: null
-  };
-  const sf2 = {
-    id: mId++, phase: 'sf', round,
-    piste: PISTES[(pisteIdx+1)%5], teamA: 'TBD_sf2a', teamB: 'TBD_sf2b',
-    bouts: [], scoreA: 0, scoreB: 0, target: 45,
-    status: 'waiting', winner: null
-  };
-  S.matches.push(sf1, sf2);
-  S.bracket.push({ phase: 'sf', label: 'Semi-Finals', matchIds: [sf1.id, sf2.id] });
-  pisteIdx += 2;
-
-  // Bronze final (3rd place — 45pts)
-  const bronze = {
-    id: mId++, phase: 'bronze', round: round+1,
-    piste: PISTES[(pisteIdx+1)%5], teamA: 'TBD_br_a', teamB: 'TBD_br_b',
-    bouts: [], scoreA: 0, scoreB: 0, target: 45,
-    status: 'waiting', winner: null
-  };
-  S.matches.push(bronze);
-
-  // Gold final (45pts)
-  const gf = {
-    id: mId++, phase: 'gf', round: round+1,
-    piste: PISTES[pisteIdx%5], teamA: 'TBD_gf_a', teamB: 'TBD_gf_b',
-    bouts: [], scoreA: 0, scoreB: 0, target: 45,
-    status: 'waiting', winner: null
-  };
-  S.matches.push(gf);
-  S.bracket.push({ phase: 'finals', label: 'Finals', matchIds: [bronze.id, gf.id] });
+  const sf1={id:mId++,phase:'sf',round,piste:PISTES[pisteIdx%5],teamA:'TBD_sf1a',teamB:'TBD_sf1b',
+    bouts:[],scoreA:0,scoreB:0,target:45,status:'waiting',winner:null};
+  const sf2={id:mId++,phase:'sf',round,piste:PISTES[(pisteIdx+1)%5],teamA:'TBD_sf2a',teamB:'TBD_sf2b',
+    bouts:[],scoreA:0,scoreB:0,target:45,status:'waiting',winner:null};
+  S.matches.push(sf1,sf2);
+  S.bracket.push({phase:'sf',label:'Semi-Finals',matchIds:[sf1.id,sf2.id]});pisteIdx+=2;
+  const bronze={id:mId++,phase:'bronze',round:round+1,piste:PISTES[(pisteIdx+1)%5],
+    teamA:'TBD_br_a',teamB:'TBD_br_b',bouts:[],scoreA:0,scoreB:0,target:45,status:'waiting',winner:null};
+  const gf={id:mId++,phase:'gf',round:round+1,piste:PISTES[pisteIdx%5],
+    teamA:'TBD_gf_a',teamB:'TBD_gf_b',bouts:[],scoreA:0,scoreB:0,target:45,status:'waiting',winner:null};
+  S.matches.push(bronze,gf);
+  S.bracket.push({phase:'finals',label:'Finals',matchIds:[bronze.id,gf.id]});
 }
 
-// Called after every match completes — advance the DE bracket
-function advanceBracket(completedMatch) {
-  const phase = completedMatch.phase;
-  const winnerId = completedMatch.winner === 'A' ? completedMatch.teamA : completedMatch.teamB;
-  const loserId  = completedMatch.winner === 'A' ? completedMatch.teamB : completedMatch.teamA;
+// ── 10-team custom bracket ────────────────────────────────────────
+// R1: seed 1v10, 2v9, 3v8, 4v7, 5v6 (all 5 pistes, 30pts)
+// After R1: rank winners W1-W5 and losers L1-L5 by score (diff then scored)
+// R2: W1vW4, W2vW3, L1vL4, L2vL3 (4 pistes, 30pts); W5=bye; L5=eliminated(10th)
+// R3: WinnersSF (W(W1vW4) vs W(W2vW3)); BronzeSF (W5 vs best L-QF winner) — 45pts
+// R4: Gold Final + Bronze Final — 45pts
+function build10TeamBracket(PISTES) {
+  const worthGroups = {};
+  S.teams.forEach(t=>{const w=teamWorth(t);if(!worthGroups[w])worthGroups[w]=[];worthGroups[w].push(t);});
+  Object.values(worthGroups).forEach(g=>shuffle(g));
+  const seeded = Object.keys(worthGroups).sort((a,b)=>b-a).flatMap(w=>worthGroups[w]);
+  while (seeded.length<10) seeded.push(null);
 
-  if (phase === 'sf') {
-    // After both SFs complete, seed bronze + gold finals
-    const sfMatches = S.matches.filter(m => m.phase === 'sf');
-    if (sfMatches.every(m => m.status === 'complete')) {
-      const winners = sfMatches.map(m => m.winner==='A'?m.teamA:m.teamB);
-      const losers  = sfMatches.map(m => m.winner==='A'?m.teamB:m.teamA);
-      const bronze = S.matches.find(m => m.phase === 'bronze');
-      const gf     = S.matches.find(m => m.phase === 'gf');
-      if (bronze) {
-        bronze.teamA = losers[0]; bronze.teamB = losers[1];
-        if (S.teams.find(t=>t.id===bronze.teamA) && S.teams.find(t=>t.id===bronze.teamB)) {
-          bronze.status = 'pending'; initBouts(bronze);
-        }
-      }
-      if (gf) {
-        gf.teamA = winners[0]; gf.teamB = winners[1];
-        if (S.teams.find(t=>t.id===gf.teamA) && S.teams.find(t=>t.id===gf.teamB)) {
-          gf.status = 'pending'; initBouts(gf);
-        }
-      }
+  // R1: 1v10, 2v9, 3v8, 4v7, 5v6
+  const r1Pairs=[[0,9],[1,8],[2,7],[3,6],[4,5]];
+  const r1MatchIds=[];
+  r1Pairs.forEach(([a,b],pi)=>{
+    const tA=seeded[a],tB=seeded[b]; if(!tA||!tB) return;
+    const m={id:mId++,phase:'r1',round:1,piste:PISTES[pi],
+      teamA:tA.id,teamB:tB.id,bouts:[],scoreA:0,scoreB:0,target:30,
+      status:'pending',winner:null,seedA:a+1,seedB:b+1};
+    S.matches.push(m);r1MatchIds.push(m.id);
+  });
+  S.bracket.push({phase:'r1',label:'Round 1 — All 10 Teams (5 Pistes)',matchIds:r1MatchIds});
+
+  // R2: 4 matches — seeded after R1 completes
+  const wQF1={id:mId++,phase:'wqf1',round:2,piste:1,teamA:'TBD_W1',teamB:'TBD_W4',
+    bouts:[],scoreA:0,scoreB:0,target:30,status:'waiting',winner:null};
+  const wQF2={id:mId++,phase:'wqf2',round:2,piste:2,teamA:'TBD_W2',teamB:'TBD_W3',
+    bouts:[],scoreA:0,scoreB:0,target:30,status:'waiting',winner:null};
+  const lQF1={id:mId++,phase:'lqf1',round:2,piste:3,teamA:'TBD_L1',teamB:'TBD_L4',
+    bouts:[],scoreA:0,scoreB:0,target:30,status:'waiting',winner:null};
+  const lQF2={id:mId++,phase:'lqf2',round:2,piste:4,teamA:'TBD_L2',teamB:'TBD_L3',
+    bouts:[],scoreA:0,scoreB:0,target:30,status:'waiting',winner:null};
+  S.matches.push(wQF1,wQF2,lQF1,lQF2);
+  S.bracket.push({phase:'r2',label:'Round 2',matchIds:[wQF1.id,wQF2.id,lQF1.id,lQF2.id],w5bye:true});
+
+  // R3: Winners SF + Bronze contention
+  const wsf={id:mId++,phase:'sf',round:3,piste:1,teamA:'TBD_WQF1w',teamB:'TBD_WQF2w',
+    bouts:[],scoreA:0,scoreB:0,target:45,status:'waiting',winner:null};
+  const bsf={id:mId++,phase:'bronzesf',round:3,piste:2,teamA:'TBD_W5',teamB:'TBD_LQFbest',
+    bouts:[],scoreA:0,scoreB:0,target:45,status:'waiting',winner:null};
+  S.matches.push(wsf,bsf);
+  S.bracket.push({phase:'r3',label:'Round 3 — Winners SF & Bronze Contention',matchIds:[wsf.id,bsf.id]});
+
+  // R4: Finals
+  const gf={id:mId++,phase:'gf',round:4,piste:1,teamA:'TBD_gf_a',teamB:'TBD_gf_b',
+    bouts:[],scoreA:0,scoreB:0,target:45,status:'waiting',winner:null};
+  const bronze={id:mId++,phase:'bronze',round:4,piste:2,teamA:'TBD_br_a',teamB:'TBD_br_b',
+    bouts:[],scoreA:0,scoreB:0,target:45,status:'waiting',winner:null};
+  S.matches.push(gf,bronze);
+  S.bracket.push({phase:'finals',label:'Finals — 🥇 Gold & 🥉 Bronze',matchIds:[gf.id,bronze.id]});
+}
+
+// ── Bracket advancement ────────────────────────────────────────────
+function advanceBracket(completedMatch) {
+  const phase=completedMatch.phase;
+  const winnerId=completedMatch.winner==='A'?completedMatch.teamA:completedMatch.teamB;
+  const loserId =completedMatch.winner==='A'?completedMatch.teamB:completedMatch.teamA;
+
+  if (S.teams.length===10) { advance10Team(completedMatch,winnerId,loserId); return; }
+
+  if (phase==='sf') {
+    const sfMatches=S.matches.filter(m=>m.phase==='sf');
+    if (sfMatches.every(m=>m.status==='complete')) {
+      const winners=sfMatches.map(m=>m.winner==='A'?m.teamA:m.teamB);
+      const losers=sfMatches.map(m=>m.winner==='A'?m.teamB:m.teamA);
+      const bronze=S.matches.find(m=>m.phase==='bronze');
+      const gf=S.matches.find(m=>m.phase==='gf');
+      if (bronze){bronze.teamA=losers[0];bronze.teamB=losers[1];
+        if(S.teams.find(t=>t.id===bronze.teamA)&&S.teams.find(t=>t.id===bronze.teamB)){bronze.status='pending';initBouts(bronze);}}
+      if (gf){gf.teamA=winners[0];gf.teamB=winners[1];
+        if(S.teams.find(t=>t.id===gf.teamA)&&S.teams.find(t=>t.id===gf.teamB)){gf.status='pending';initBouts(gf);}}
+    }
+    return;
+  }
+  if (phase==='gf'||phase==='bronze') return;
+
+  const curBr=S.bracket.find(b=>b.matchIds&&b.matchIds.includes(completedMatch.id));
+  if (!curBr) return;
+  const posInRound=curBr.matchIds.indexOf(completedMatch.id);
+  const nextBr=S.bracket[S.bracket.indexOf(curBr)+1];
+  if (!nextBr||!nextBr.matchIds) return;
+  const nextMatchId=nextBr.matchIds[Math.floor(posInRound/2)];
+  const nextMatch=S.matches.find(m=>m.id===nextMatchId);
+  if (!nextMatch) return;
+  if (posInRound%2===0) nextMatch.teamA=winnerId; else nextMatch.teamB=winnerId;
+  const tA=S.teams.find(t=>t.id===nextMatch.teamA),tB=S.teams.find(t=>t.id===nextMatch.teamB);
+  if (tA&&tB&&nextMatch.status==='waiting'){nextMatch.status='pending';initBouts(nextMatch);}
+}
+
+// Rank teams by R1 performance (wins first, then diff, then scored)
+function rankR1Teams(teamIds, r1Matches) {
+  return teamIds.map(id=>{
+    const m=r1Matches.find(x=>x.teamA===id||x.teamB===id);
+    if (!m) return {id,scored:0,diff:0};
+    const scored=m.teamA===id?m.scoreA:m.scoreB;
+    const conc  =m.teamA===id?m.scoreB:m.scoreA;
+    return {id,scored,diff:scored-conc};
+  }).sort((a,b)=>b.diff-a.diff||b.scored-a.scored);
+}
+
+function advance10Team(m, winnerId, loserId) {
+  const phase=m.phase;
+
+  // ── After all R1 done: seed R2 ─────────────────────────────────
+  if (phase==='r1') {
+    const r1=S.matches.filter(x=>x.phase==='r1');
+    if (!r1.every(x=>x.status==='complete')) return;
+
+    const winnerIds=r1.map(x=>x.winner==='A'?x.teamA:x.teamB);
+    const loserIds =r1.map(x=>x.winner==='A'?x.teamB:x.teamA);
+
+    // Rank winners and losers by diff then scored
+    const rankedW=rankR1Teams(winnerIds,r1);  // W1..W5
+    const rankedL=rankR1Teams(loserIds,r1);   // L1..L5
+
+    // W5 gets bye; L5 is eliminated (10th)
+    // Record W5 id for later
+    S._10team_W5=rankedW[4].id;
+    S._10team_L5=rankedL[4].id; // eliminated
+
+    // Seed R2 matches
+    const wQF1=S.matches.find(x=>x.phase==='wqf1');
+    const wQF2=S.matches.find(x=>x.phase==='wqf2');
+    const lQF1=S.matches.find(x=>x.phase==='lqf1');
+    const lQF2=S.matches.find(x=>x.phase==='lqf2');
+
+    if (wQF1){wQF1.teamA=rankedW[0].id;wQF1.teamB=rankedW[3].id;wQF1.status='pending';initBouts(wQF1);}
+    if (wQF2){wQF2.teamA=rankedW[1].id;wQF2.teamB=rankedW[2].id;wQF2.status='pending';initBouts(wQF2);}
+    if (lQF1){lQF1.teamA=rankedL[0].id;lQF1.teamB=rankedL[3].id;lQF1.status='pending';initBouts(lQF1);}
+    if (lQF2){lQF2.teamA=rankedL[1].id;lQF2.teamB=rankedL[2].id;lQF2.status='pending';initBouts(lQF2);}
+
+    const w5name=S.teams.find(t=>t.id===rankedW[4].id)?.name||'W5';
+    const l5name=S.teams.find(t=>t.id===rankedL[4].id)?.name||'L5';
+    showToast(`R1 done → R2 seeded. ${w5name} gets bye. ${l5name} is 10th.`);
+    return;
+  }
+
+  // ── After all R2 done: seed R3 ─────────────────────────────────
+  if (phase==='wqf1'||phase==='wqf2'||phase==='lqf1'||phase==='lqf2') {
+    const r2Phases=['wqf1','wqf2','lqf1','lqf2'];
+    const r2=S.matches.filter(x=>r2Phases.includes(x.phase));
+    if (!r2.every(x=>x.status==='complete')) return;
+
+    const wQF1=S.matches.find(x=>x.phase==='wqf1');
+    const wQF2=S.matches.find(x=>x.phase==='wqf2');
+    const lQF1=S.matches.find(x=>x.phase==='lqf1');
+    const lQF2=S.matches.find(x=>x.phase==='lqf2');
+
+    const wQF1w=wQF1.winner==='A'?wQF1.teamA:wQF1.teamB;
+    const wQF2w=wQF2.winner==='A'?wQF2.teamA:wQF2.teamB;
+    const lQF1w=lQF1.winner==='A'?lQF1.teamA:lQF1.teamB;
+    const lQF2w=lQF2.winner==='A'?lQF2.teamA:lQF2.teamB;
+
+    // Winners SF: W(wQF1) vs W(wQF2)
+    const wsf=S.matches.find(x=>x.phase==='sf');
+    if (wsf){wsf.teamA=wQF1w;wsf.teamB=wQF2w;wsf.status='pending';initBouts(wsf);}
+
+    // Bronze SF: W5 (bye) vs best L-QF winner (by diff then scored)
+    const lQF1scored=lQF1w===lQF1.teamA?lQF1.scoreA:lQF1.scoreB;
+    const lQF1conc  =lQF1w===lQF1.teamA?lQF1.scoreB:lQF1.scoreA;
+    const lQF2scored=lQF2w===lQF2.teamA?lQF2.scoreA:lQF2.scoreB;
+    const lQF2conc  =lQF2w===lQF2.teamA?lQF2.scoreB:lQF2.scoreA;
+    const lQF1diff=lQF1scored-lQF1conc, lQF2diff=lQF2scored-lQF2conc;
+    // Best L-QF winner gets the harder Bronze SF slot against W5
+    const bestLQFw = (lQF1diff>lQF2diff||(lQF1diff===lQF2diff&&lQF1scored>=lQF2scored)) ? lQF1w : lQF2w;
+    const otherLQFw= bestLQFw===lQF1w ? lQF2w : lQF1w;
+
+    const bsf=S.matches.find(x=>x.phase==='bronzesf');
+    const W5=S._10team_W5;
+    if (bsf&&W5){bsf.teamA=W5;bsf.teamB=bestLQFw;bsf.status='pending';initBouts(bsf);}
+
+    // Store the other LQF winner — they place 5th/6th by indicator
+    S._10team_otherLQFw=otherLQFw;
+    return;
+  }
+
+  // ── After both R3 done: seed Finals ───────────────────────────
+  if (phase==='sf'||phase==='bronzesf') {
+    const r3=S.matches.filter(x=>x.phase==='sf'||x.phase==='bronzesf');
+    if (!r3.every(x=>x.status==='complete')) return;
+
+    const wsfm=S.matches.find(x=>x.phase==='sf');
+    const bsfm=S.matches.find(x=>x.phase==='bronzesf');
+
+    const gfW1=wsfm.winner==='A'?wsfm.teamA:wsfm.teamB;
+    const gfW2=wsfm.winner==='A'?wsfm.teamB:wsfm.teamA; // SF loser → bronze
+    const bronzeC1=bsfm.winner==='A'?bsfm.teamA:bsfm.teamB;
+    const bronzeC2=bsfm.winner==='A'?bsfm.teamB:bsfm.teamA; // bronze SF loser → 5th/6th
+
+    const gf=S.matches.find(x=>x.phase==='gf');
+    const bronze=S.matches.find(x=>x.phase==='bronze');
+
+    if (gf){gf.teamA=gfW1;gf.teamB=wsfm.winner==='A'?wsfm.teamB:wsfm.teamA;
+      // Actually: GF = SF winner vs... wait need both SF winners. Just SF winners:
+      // wsf gives 1 winner → GF. bsf gives 1 winner → bronze.
+      // SF loser → bronze contender
+      gf.teamA=gfW1; gf.teamB=bronzeC1; // No — GF is SF winner only
+      // Correction: GF = SF winner. Bronze = SF loser vs bsf winner? No.
+      // Structure: wsf winner → GF with who? bsf winner → Bronze with SF loser.
+      // Actually: GF has only ONE SF (winners SF). Second finalist must be...
+      // The bracket has 1 winners SF → 1 winner → needs an opponent.
+      // We need 2 teams in GF. With this structure GF is wsf winner vs bsf winner.
+      gf.teamA=wsfm.winner==='A'?wsfm.teamA:wsfm.teamB;
+      gf.teamB=bsfm.winner==='A'?bsfm.teamA:bsfm.teamB;
+      if(S.teams.find(t=>t.id===gf.teamA)&&S.teams.find(t=>t.id===gf.teamB)){gf.status='pending';initBouts(gf);}
+    }
+    if (bronze){
+      // Bronze = SF loser vs bsf loser
+      bronze.teamA=wsfm.winner==='A'?wsfm.teamB:wsfm.teamA;
+      bronze.teamB=bsfm.winner==='A'?bsfm.teamB:bsfm.teamA;
+      if(S.teams.find(t=>t.id===bronze.teamA)&&S.teams.find(t=>t.id===bronze.teamB)){bronze.status='pending';initBouts(bronze);}
     }
     return;
   }
 
-  if (phase === 'gf' || phase === 'bronze') return; // terminal matches
-
-  // For DE rounds: find the next-round match that this match feeds into
-  // and assign the winner. Use bracket slot position.
-  const curBr = S.bracket.find(b => b.matchIds && b.matchIds.includes(completedMatch.id));
-  if (!curBr) return;
-  const posInRound = curBr.matchIds.indexOf(completedMatch.id);
-  const nextBr = S.bracket[S.bracket.indexOf(curBr) + 1];
-  if (!nextBr || !nextBr.matchIds) return;
-  const nextMatchId = nextBr.matchIds[Math.floor(posInRound / 2)];
-  const nextMatch = S.matches.find(m => m.id === nextMatchId);
-  if (!nextMatch) return;
-  // Assign winner to correct slot (A or B)
-  if (posInRound % 2 === 0) nextMatch.teamA = winnerId;
-  else nextMatch.teamB = winnerId;
-  // If both teams now assigned and real → pending
-  const tA = S.teams.find(t => t.id === nextMatch.teamA);
-  const tB = S.teams.find(t => t.id === nextMatch.teamB);
-  if (tA && tB && nextMatch.status === 'waiting') {
-    nextMatch.status = 'pending'; initBouts(nextMatch);
-  }
+  if (phase==='gf'||phase==='bronze') return;
 }
 
 // FIE-style standings across all DE matches
