@@ -570,10 +570,11 @@ select option{background:var(--navy2);}
 <div class="modal-overlay" id="swapModal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title" id="swapModalTitle">Swap Fencer</div>
+    <div class="modal-title" id="swapModalTitle">Change Fencer</div>
     <p class="text-muted" style="margin-bottom:12px;" id="swapModalSub"></p>
+    <div id="swapCompNote" style="display:none;background:rgba(46,125,212,.1);border:1px solid rgba(46,125,212,.3);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--blue2);">You can only change fencers in bouts that have not started yet, or the next bout after the current one finishes.</div>
     <div class="form-group">
-      <label>Select replacement from team</label>
+      <label>Select replacement from your team</label>
       <select id="swapSelect" style="margin-bottom:4px;"></select>
     </div>
     <div class="form-group" style="margin-bottom:16px;">
@@ -583,7 +584,7 @@ select option{background:var(--navy2);}
     <div id="swapScopeInfo" style="font-size:11px;color:var(--muted);margin-bottom:12px;"></div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-ghost btn-block" onclick="closeModal('swapModal')">Cancel</button>
-      <button class="btn btn-primary btn-block" onclick="confirmSwap()">Confirm Swap</button>
+      <button class="btn btn-primary btn-block" onclick="confirmSwap()">Confirm Change</button>
     </div>
   </div>
 </div>
@@ -789,6 +790,23 @@ select option{background:var(--navy2);}
     <div style="display:flex;gap:8px;">
       <button class="btn btn-ghost btn-block" onclick="closeModal('bracketReassignModal')">Cancel</button>
       <button class="btn btn-purple btn-block" onclick="confirmBracketReassign()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD FENCER TO TEAM (committee) -->
+<div class="modal-overlay" id="addToTeamModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="addToTeamTitle">Add Fencer to Team</div>
+    <p class="text-muted" style="margin-bottom:14px;font-size:13px;">Select a registered fencer who is not yet on a team.</p>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Select fencer</label>
+      <select id="addToTeamSel"></select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('addToTeamModal')">Cancel</button>
+      <button class="btn btn-primary btn-block" onclick="confirmAddToTeam()">Add to team</button>
     </div>
   </div>
 </div>
@@ -2120,13 +2138,15 @@ function renderTeamsPreview() {
   const el = document.getElementById('teamsPreview');
   if (!S.teams.length) { el.innerHTML=''; return; }
   const isCom = S.role === 'committee';
-  el.innerHTML = `<div class="section-head">Generated Teams ${isCom?'<span style="font-size:10px;font-weight:400;color:var(--muted);">— tap a fencer to move them</span>':''}</div>` +
+  const isComp = S.role === 'competitor';
+  const myTeamId = isComp && myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId))?.id : null;
+  el.innerHTML = `<div class="section-head">Generated Teams ${isCom?'<span style="font-size:10px;font-weight:400;color:var(--muted);">— + add · × remove</span>':''}</div>` +
     S.teams.map(t => {
       const fd = t.fencers.map(id => S.fencers.find(f=>f.id===id)).filter(Boolean);
-      const myTeam = S.role==='competitor' && myFencerId && t.fencers.includes(myFencerId);
-      const canRename = S.role==='committee' || S.role==='referee' || myTeam;
+      const myTeam = isComp && t.id === myTeamId;
+      const canRename = isCom || S.role==='referee' || myTeam;
       const worth = teamWorth(t);
-      return `<div class="team-card">
+      return `<div class="team-card" style="${myTeam?'border-color:var(--gold);':''}">
         <div class="team-card-header">
           ${canRename
             ? `<input class="team-name-edit" type="text" value="${t.name}" onchange="updateTeamName(${t.id},this.value)" title="Tap to rename">`
@@ -2135,14 +2155,15 @@ function renderTeamsPreview() {
           <div style="display:flex;gap:5px;align-items:center;">
             <span class="badge badge-muted" style="font-family:'DM Mono',monospace;">⚖ ${worth}</span>
             <span class="badge badge-muted">${fd.length}</span>
+            ${isCom?`<button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:12px;color:var(--gold);border-color:rgba(201,162,39,.4);" onclick="openAddFencerToTeam(${t.id})">+ Add</button>`:''}
           </div>
         </div>
         <ul class="fencer-list">
-          ${fd.map(f=>`<li style="${isCom?'cursor:pointer;':''}${isCom?'padding:3px 0;':''}" onclick="${isCom?`openMoveFencer(${f.id},${t.id})`:''}">
+          ${fd.map(f=>`<li style="${isCom?'cursor:pointer;padding:3px 0;':''}" onclick="${isCom?`openMoveFencer(${f.id},${t.id})`:''}">
             <span class="dot ${f.level==='intermediate'?'int-dot':f.level==='novice'?'nov-dot':''}"></span>
-            ${f.name}
+            <span style="flex:1">${f.name}</span>
             <span class="badge ${f.level==='intermediate'?'badge-gold':f.level==='novice'?'badge-red':'badge-blue'}" style="font-size:9px;padding:1px 5px;">${f.level==='intermediate'?'Int/Adv':f.level==='novice'?'Novice':'Beginner'}</span>
-            ${isCom?`<span style="margin-left:auto;font-size:10px;color:var(--muted);">move →</span>`:''}
+            ${isCom?`<button class="del-btn" style="margin-left:6px;" onclick="event.stopPropagation();removeFromTeam(${f.id},${t.id})" title="Remove from team">×</button>`:''}
           </li>`).join('')}
         </ul>
       </div>`;
@@ -2269,15 +2290,17 @@ function renderScoring() {
   const secs = (t.seconds%60).toString().padStart(2,'0');
   const tc = t.seconds<=30?'danger':t.seconds<=60?'warning':'';
   const isPriv = S.role==='referee'||S.role==='committee';
-  const canBail = false; // bail-out feature removed
-  const fA = S.fencers.find(f=>f.name===ab?.fencerA);
-  const fB = S.fencers.find(f=>f.name===ab?.fencerB);
+  const isComp = S.role==='competitor';
+  const myTeam = isComp && myFencerId ? S.teams.find(t=>t.fencers.includes(myFencerId)) : null;
+  const canSwapA = isPriv || (isComp && myTeam && myTeam.id === m.teamA);
+  const canSwapB = isPriv || (isComp && myTeam && myTeam.id === m.teamB);
+  // Check if competitor already used their swap in this match
+  const compSwappedOut = isComp && myFencerId && m.compSwaps && m.compSwaps[myFencerId];
 
-  // Swap button: referee and committee can swap on pending/active bouts
-  const swapBtnA = isPriv && m.status!=='complete'
-    ? `<span style="font-size:11px;color:var(--blue2);cursor:pointer;text-decoration:underline;" onclick="openSwap(${m.id},${boutIdx},'A')">⇄ swap</span>` : '';
-  const swapBtnB = isPriv && m.status!=='complete'
-    ? `<span style="font-size:11px;color:var(--blue2);cursor:pointer;text-decoration:underline;" onclick="openSwap(${m.id},${boutIdx},'B')">⇄ swap</span>` : '';
+  const swapBtnA = (canSwapA && m.status!=='complete' && !compSwappedOut)
+    ? `<span style="font-size:11px;color:var(--blue2);cursor:pointer;text-decoration:underline;" onclick="openSwap(${m.id},${boutIdx},'A')">${isComp?'⇄ change':'⇄ swap'}</span>` : '';
+  const swapBtnB = (canSwapB && m.status!=='complete')
+    ? `<span style="font-size:11px;color:var(--blue2);cursor:pointer;text-decoration:underline;" onclick="openSwap(${m.id},${boutIdx},'B')">${isComp?'⇄ change':'⇄ swap'}</span>` : '';
   const bailBtnA = '';
   const bailBtnB = '';
 
@@ -2577,6 +2600,56 @@ function confirmBracketReassign() {
   showToast('Bracket updated ✓');
 }
 
+
+// ── Add fencer to team (committee) ───────────────────────────
+let addToTeamContext = null;
+function openAddFencerToTeam(teamId) {
+  if (S.role !== 'committee') return;
+  const team = S.teams.find(t => t.id === teamId);
+  if (!team) return;
+  addToTeamContext = teamId;
+  document.getElementById('addToTeamTitle').textContent = `Add Fencer to ${team.name}`;
+  const onTeam = new Set(S.teams.flatMap(t => t.fencers));
+  const available = sortBySurname(S.fencers.filter(f => !f.bailed && f.name.trim() && !onTeam.has(f.id)));
+  const sel = document.getElementById('addToTeamSel');
+  sel.innerHTML = available.length
+    ? `<option value="">— select fencer —</option>` + available.map(f =>
+        `<option value="${f.id}">${f.name} (${f.level==='intermediate'?'Int/Adv':f.level==='novice'?'Novice':'Beginner'})</option>`).join('')
+    : `<option value="">— no unassigned fencers —</option>`;
+  openModal('addToTeamModal');
+}
+
+function confirmAddToTeam() {
+  if (!addToTeamContext) return;
+  const fid = parseInt(document.getElementById('addToTeamSel').value);
+  if (!fid) { showToast('Select a fencer'); return; }
+  const team = S.teams.find(t => t.id === addToTeamContext);
+  const f = S.fencers.find(x => x.id === fid);
+  if (!team || !f) return;
+  team.fencers.push(fid);
+  if (S.started) reshuffleAllTeamBouts(addToTeamContext);
+  addToTeamContext = null;
+  pushState();
+  closeModal('addToTeamModal');
+  renderTeamsPreview();
+  if (S.started) renderMatches();
+  showToast(`${f.name} added to ${team.name} ✓`);
+}
+
+// ── Remove fencer from team (committee) ──────────────────────
+function removeFromTeam(fencerId, teamId) {
+  if (S.role !== 'committee') return;
+  const team = S.teams.find(t => t.id === teamId);
+  const f = S.fencers.find(x => x.id === fencerId);
+  if (!team || !f) return;
+  if (!confirm(`Remove ${f.name} from ${team.name}?\nThey stay in the fencer list but become unassigned.`)) return;
+  team.fencers = team.fencers.filter(id => id !== fencerId);
+  if (S.started && team.fencers.length > 0) reshuffleAllTeamBouts(teamId);
+  pushState();
+  renderTeamsPreview();
+  if (S.started) renderMatches();
+  showToast(`${f.name} removed from ${team.name}`);
+}
 
 let moveFencerContext = null;
 function openMoveFencer(fencerId, fromTeamId) {
@@ -2966,27 +3039,42 @@ function endMatch(m) {
 // FENCER SWAP (referee / committee)
 // ════════════════════════════════════════════════
 function openSwap(matchId, boutIdx, side) {
-  if (S.role!=='referee'&&S.role!=='committee') return;
+  const isPriv = S.role==='referee' || S.role==='committee';
+  const isComp = S.role==='competitor';
+  if (!isPriv && !isComp) return;
+
   const m = S.matches.find(x=>x.id===matchId);
   if (!m) return;
   const bout = m.bouts[boutIdx];
   const teamId = side==='A' ? m.teamA : m.teamB;
+
+  // Competitor: can only change fencers in their own team's pending bouts
+  if (isComp) {
+    const myTeam = S.teams.find(t => t.fencers.includes(myFencerId));
+    if (!myTeam || myTeam.id !== teamId) { showToast('You can only change fencers in your own team'); return; }
+    // Check there are pending bouts to change (active bout is already started)
+    const hasPending = m.bouts.some((b,i) => i >= boutIdx && b.status === 'pending');
+    if (!hasPending) { showToast('No upcoming bouts to change'); return; }
+  }
+
   const team = S.teams.find(t=>t.id===teamId);
   const currentName = side==='A' ? bout.fencerA : bout.fencerB;
-
-  // Count future pending bouts with same fencer name on same side
   const futureBouts = m.bouts.filter((b,i) => i > boutIdx && b.status==='pending' &&
     (side==='A' ? b.fencerA===currentName : b.fencerB===currentName));
 
   swapContext = { matchId, boutIdx, side, currentName, teamId };
-  document.getElementById('swapModalTitle').textContent = `Swap ${side==='A'?'Team A':'Team B'} Fencer`;
+  const compNote = document.getElementById('swapCompNote');
+  if (compNote) compNote.style.display = isComp ? 'block' : 'none';
+  // Hide manual name input for competitors
+  const manualRow = document.getElementById('swapManual')?.closest('.form-group');
+  if (manualRow) manualRow.style.display = isComp ? 'none' : 'block';
+  document.getElementById('swapModalTitle').textContent = isComp ? 'Change Fencer' : `Change ${side==='A'?'Team A':'Team B'} Fencer`;
   document.getElementById('swapModalSub').textContent = `Currently: ${currentName}`;
   document.getElementById('swapScopeInfo').textContent =
     futureBouts.length > 0
-      ? `⚠ "${currentName}" appears in ${futureBouts.length} future bout(s). Swapping will update all pending appearances.`
-      : 'This bout only.';
+      ? `"${currentName}" appears in ${futureBouts.length} upcoming bout(s) — all will be updated.`
+      : 'Affects this bout only.';
 
-  // Populate select with team members (excluding current fencer)
   const teamFencers = team?.fencers
     .map(id=>S.fencers.find(f=>f.id===id))
     .filter(f=>f&&!f.bailed&&f.name.trim()&&f.name!==currentName) || [];
@@ -3008,9 +3096,9 @@ function confirmSwap() {
   if (!m) return;
   const {boutIdx, side, currentName} = swapContext;
 
-  // Update active/pending bouts that still have the old name on that side
+  // Update active/pending bouts from boutIdx onward
   m.bouts.forEach((b, i) => {
-    if (i < boutIdx) return; // don't touch completed bouts
+    if (i < boutIdx) return;
     if (b.status==='done') return;
     if (side==='A' && b.fencerA===currentName) b.fencerA = newName;
     if (side==='B' && b.fencerB===currentName) b.fencerB = newName;
@@ -3019,7 +3107,7 @@ function confirmSwap() {
   closeModal('swapModal');
   pushState();
   renderScoring(); renderMatches();
-  showToast(`Swapped: ${currentName} → ${newName}`);
+  showToast(`Changed: ${currentName} → ${newName}`);
 }
 
 
