@@ -921,6 +921,28 @@ select option{background:var(--navy2);}
   </div>
 </div>
 
+<!-- CHANGE TEAMS ON A MATCH (committee only) -->
+<div class="modal-overlay" id="changeTeamsModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Change Teams on Match</div>
+    <p class="text-muted" style="font-size:12px;margin-bottom:14px;" id="changeTeamsSub"></p>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="color:var(--gold);">Team A (left side)</label>
+      <select id="changeTeamsSelA"></select>
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label style="color:var(--blue2);">Team B (right side)</label>
+      <select id="changeTeamsSelB"></select>
+    </div>
+    <p class="text-muted" style="font-size:11px;margin-bottom:14px;">⚠ This will regenerate all bouts for this match. Any scores already entered will be lost.</p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('changeTeamsModal')">Cancel</button>
+      <button class="btn btn-primary btn-block" onclick="confirmChangeTeams()">Apply</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast hidden" id="toast"></div>
 
 <script>
@@ -2330,7 +2352,7 @@ function renderMatchCard(m, isPriv) {
       <span class="match-meta">${phaseLabel?phaseLabel+' · ':''}Piste ${isPriv
         ? `<span style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,.3);padding-bottom:1px;" onclick="event.stopPropagation();openPisteEdit(${m.id})">${m.piste} ✎</span>`
         : m.piste
-      }</span>
+      }${S.role==='committee' ? ` &nbsp;<span style="font-size:10px;color:var(--gold);cursor:pointer;text-decoration:underline;" onclick="event.stopPropagation();openChangeTeams(${m.id})">⇄ teams</span>` : ''}</span>
       <div style="display:flex;gap:5px;align-items:center;">${myBadge}${sb}<span class="match-meta">${m.target}pts</span></div>
     </div>
     <div class="match-teams">
@@ -2945,6 +2967,48 @@ function savePisteEdit(matchId, piste) {
   renderMatches();
   renderBracket();
   showToast(`→ Piste ${piste}`);
+}
+
+// ── Change teams on a match (committee) ──────────────────────────
+let changeTeamsMatchId = null;
+function openChangeTeams(matchId) {
+  if (S.role !== 'committee') return;
+  const m = S.matches.find(x => x.id === matchId);
+  if (!m) return;
+  changeTeamsMatchId = matchId;
+  const tA = S.teams.find(t => t.id === m.teamA);
+  const tB = S.teams.find(t => t.id === m.teamB);
+  document.getElementById('changeTeamsSub').textContent =
+    `Phase: ${m.phase}  ·  Piste ${m.piste}  ·  Current: ${tA?.name||'TBD'} vs ${tB?.name||'TBD'}`;
+  const opts = '<option value="">— select —</option>' +
+    S.teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  const selA = document.getElementById('changeTeamsSelA');
+  const selB = document.getElementById('changeTeamsSelB');
+  selA.innerHTML = opts; selB.innerHTML = opts;
+  if (tA) selA.value = tA.id;
+  if (tB) selB.value = tB.id;
+  openModal('changeTeamsModal');
+}
+
+function confirmChangeTeams() {
+  const m = S.matches.find(x => x.id === changeTeamsMatchId);
+  if (!m) return;
+  const newA = parseInt(document.getElementById('changeTeamsSelA').value);
+  const newB = parseInt(document.getElementById('changeTeamsSelB').value);
+  if (!newA || !newB) { showToast('Select both teams'); return; }
+  if (newA === newB) { showToast('Teams must be different'); return; }
+  const tAname = S.teams.find(t=>t.id===newA)?.name;
+  const tBname = S.teams.find(t=>t.id===newB)?.name;
+  m.teamA = newA; m.teamB = newB;
+  m.scoreA = 0; m.scoreB = 0;
+  m.winner = null; m.status = 'pending'; m.bouts = [];
+  initBouts(m);
+  pushState();
+  closeModal('changeTeamsModal');
+  renderMatches(); renderBracket();
+  if (S.currentTab === 'scoring' && S.activeMatchId === changeTeamsMatchId) renderScoring();
+  showToast(`Match updated: ${tAname} vs ${tBname} ✓`);
+  changeTeamsMatchId = null;
 }
 
 //    Card flash overlay                                          
