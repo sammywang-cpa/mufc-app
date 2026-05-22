@@ -1448,9 +1448,15 @@ function updateGenCard() {
     const timeColour = estMin > 110 ? 'color:#e74c3c' : estMin > 90 ? 'color:var(--gold)' : 'color:#2ecc71';
     document.getElementById('teamSizeInfo').innerHTML =
       `${n} fencers → ${numTeams} teams &nbsp;<span style="color:var(--muted);font-size:11px;">(${sizeDesc})</span>`;
-    document.getElementById('formatLabel').textContent = `${fmt.points} pts · ${fmt.bouts} bouts${numTeams<=3?' (45pts — small group!)':''}`;
-    document.getElementById('structureLabel').innerHTML =
-      `${fmt.structure} &nbsp;<span style="${timeColour};font-size:11px;">~${estMin} min</span>`;
+    if (numTeams === 10) {
+      document.getElementById('formatLabel').textContent = 'R1–R2: 30pts · R3 SF: 30pts · Finals: 45pts';
+      document.getElementById('structureLabel').innerHTML =
+        `DE: R1 &rarr; R2 &rarr; SF &rarr; Finals &nbsp;<span style="${timeColour};font-size:11px;">~${estMin} min</span>`;
+    } else {
+      document.getElementById('formatLabel').textContent = `${fmt.points} pts · ${fmt.bouts} bouts${numTeams<=3?' (45pts — small group!)':''}`;
+      document.getElementById('structureLabel').innerHTML =
+        `${fmt.structure} &nbsp;<span style="${timeColour};font-size:11px;">~${estMin} min</span>`;
+    }
 
     const teamsExist = S.teams.length > 0;
     const drawExists = S.matches.length > 0;
