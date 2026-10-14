@@ -1,0 +1,40 @@
+{
+  "rules": {
+    "secrets": {
+      "$code": {
+        ".read": false,
+        ".write": "!data.exists() && $code.matches(/^[A-Z0-9]{6}$/)",
+        ".validate": "newData.child('hostPin').isString() && newData.child('hostPin').val().matches(/^[0-9]{6}$/) && newData.child('refPin').isString() && newData.child('refPin').val().matches(/^[0-9]{6}$/) && newData.child('hostPin').val() !== newData.child('refPin').val()"
+      }
+    },
+    "events": {
+      "$code": {
+        "public": {
+          ".read": true,
+          ".write": "newData.child('_n').isString() && newData.child('_n').val() !== data.child('_n').val() && newData.parent().child('hostAuth').child(newData.child('_n').val()).exists() && !data.parent().child('hostAuth').child(newData.child('_n').val()).exists()",
+          "results": {
+            "$m": {
+              ".write": "root.child('events/'+$code+'/public/meta/locked').val() !== true && newData.child('nonce').isString() && newData.parent().parent().parent().child('resultAuth').child(newData.child('nonce').val()).child('m').val() === $m && !data.parent().parent().parent().child('resultAuth').child(newData.child('nonce').val()).exists()",
+              ".validate": "!newData.hasChild('pin')"
+            }
+          }
+        },
+        "hostAuth": {
+          "$n": {
+            ".write": "!data.exists() && newData.child('pin').isString() && newData.child('pin').val() === newData.parent().parent().parent().parent().child('secrets/'+$code+'/hostPin').val()"
+          }
+        },
+        "resultAuth": {
+          "$n": {
+            ".write": "!data.exists() && newData.child('m').isString() && newData.child('pin').isString() && (newData.child('pin').val() === root.child('secrets/'+$code+'/refPin').val() || newData.child('pin').val() === root.child('secrets/'+$code+'/hostPin').val())"
+          }
+        },
+        "refcheck": {
+          "$d": {
+            ".write": "newData.child('pin').isString() && (newData.child('pin').val() === root.child('secrets/'+$code+'/refPin').val() || newData.child('pin').val() === root.child('secrets/'+$code+'/hostPin').val())"
+          }
+        }
+      }
+    }
+  }
+}
